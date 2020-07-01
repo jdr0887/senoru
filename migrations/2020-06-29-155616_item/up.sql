@@ -1,0 +1,7 @@
+CREATE TABLE items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  contents TEXT,
+  date_added DATETIME NOT NULL,
+  date_last_modified DATETIME NOT NULL
+)
