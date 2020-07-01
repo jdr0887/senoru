@@ -78,7 +78,7 @@ fn init_db() -> Result<(), Box<dyn Error>> {
 }
 
 fn launch(application: &gtk::Application) -> Result<(), Box<dyn Error>> {
-    let builder: gtk::Builder = gtk::Builder::new_from_string(include_str!("securu.glade"));
+    let builder: gtk::Builder = gtk::Builder::new_from_string(include_str!("senoru.glade"));
 
     let main_window: gtk::Window = builder.get_object("main_window").unwrap();
     let quit_menu_item: gtk::MenuItem = builder.get_object("quit_menu_item").unwrap();
