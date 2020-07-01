@@ -37,11 +37,11 @@ struct Options {
 }
 
 fn create_db_connection_pool() -> DbPool {
-    let securu_dir = dirs::home_dir().unwrap().join(".senoru");
-    if !securu_dir.as_path().exists() {
-        std::fs::create_dir_all(&securu_dir).ok();
+    let project_dir = dirs::home_dir().unwrap().join(".senoru");
+    if !project_dir.as_path().exists() {
+        std::fs::create_dir_all(&project_dir).ok();
     }
-    let connspec = securu_dir.clone().join("senoru.db");
+    let connspec = project_dir.clone().join("senoru.db");
     let manager = ConnectionManager::<SqliteConnection>::new(connspec.to_string_lossy());
     let pool = r2d2::Pool::builder().max_size(1).build(manager).expect("Failed to create pool.");
     pool
@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     init_db()?;
 
-    let application_window: gtk::Application = gtk::Application::new(Some("com.kiluet.securu"), Default::default()).expect("initialize failed");
+    let application_window: gtk::Application = gtk::Application::new(Some("com.kiluet.senoru"), Default::default()).expect("initialize failed");
     application_window.connect_startup(move |application| {
         launch(application).expect("failed to launch the gui");
     });
