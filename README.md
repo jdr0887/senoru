@@ -3,7 +3,7 @@
 ### Getting Started
 
 ```
-$ sudo apt-get install libsqlite3-dev sqlite3
+$ sudo apt-get -y install sqlite3 libsqlite3-dev 
 $ cargo run
 ```
 
