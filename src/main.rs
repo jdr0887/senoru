@@ -53,7 +53,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn start_ui(app: &gtk::Application) {
     let builder: gtk::Builder = gtk::Builder::from_string(include_str!("senoru.glade"));
-    let main_window: gtk::Window = builder.get_object("main_window").unwrap();
     let dialog: gtk::Dialog = builder.get_object("passphrase_dialog").unwrap();
     let passphrase_dialog_ok_button: gtk::Button = builder.get_object("passphrase_dialog_ok_button").unwrap();
     let passphrase_dialog_cancel_button: gtk::Button = builder.get_object("passphrase_dialog_cancel_button").unwrap();
@@ -61,16 +60,16 @@ fn start_ui(app: &gtk::Application) {
     db::init_db().expect("failed to initialize the db");
 
     passphrase_dialog_ok_button.connect_clicked(glib::clone!(@weak builder, @weak app => move |_| {
-        passphrase_dialog_ok_button_clicked(&builder, &app);
+        passphrase_dialog_ok_button_clicked(&app, &builder);
     }));
-    passphrase_dialog_cancel_button.connect_clicked(glib::clone!(@weak main_window => move |_| {
+    passphrase_dialog_cancel_button.connect_clicked(|_| {
         std::process::exit(0);
-    }));
+    });
     dialog.run();
     dialog.close();
 }
 
-fn passphrase_dialog_ok_button_clicked(builder: &gtk::Builder, app: &gtk::Application) {
+fn passphrase_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Builder) {
     let dialog: gtk::Dialog = builder.get_object("passphrase_dialog").unwrap();
     let passphrase_dialog_entry: gtk::Entry = builder.get_object("passphrase_dialog_entry").unwrap();
 
@@ -80,7 +79,7 @@ fn passphrase_dialog_ok_button_clicked(builder: &gtk::Builder, app: &gtk::Applic
     match first_item {
         Some(item) => match item.clone().decrypt_contents(&mc) {
             Ok(_) => {
-                gui::launch(&app, &mc).expect("failed to launch the gui");
+                gui::launch(&app, &builder, &mc).expect("failed to launch the gui");
                 dialog.close();
             }
             Err(e) => {
@@ -92,7 +91,7 @@ fn passphrase_dialog_ok_button_clicked(builder: &gtk::Builder, app: &gtk::Applic
             }
         },
         None => {
-            gui::launch(&app, &mc).expect("failed to launch the gui");
+            gui::launch(&app, &builder, &mc).expect("failed to launch the gui");
             dialog.close();
         }
     }

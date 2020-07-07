@@ -1,9 +1,6 @@
 use crate::item_actions;
 use crate::models;
-use gio::prelude::*;
 use gtk::prelude::*;
-use gtk::CellRendererText;
-use gtk::GtkMenuExt;
 use gtk::TreeViewExt;
 use magic_crypt::MagicCrypt256;
 use magic_crypt::MagicCryptTrait;
@@ -11,10 +8,8 @@ use std::error::Error;
 use std::fs;
 use std::io;
 use std::io::prelude::*;
-use std::path;
 
-pub fn launch(application: &gtk::Application, mc: &MagicCrypt256) -> Result<(), Box<dyn Error>> {
-    let builder: gtk::Builder = gtk::Builder::from_string(include_str!("senoru.glade"));
+pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &MagicCrypt256) -> Result<(), Box<dyn Error>> {
     let main_window: gtk::Window = builder.get_object("main_window").unwrap();
     let about_menu_item: gtk::MenuItem = builder.get_object("about_menu_item").unwrap();
     let import_menu_item: gtk::MenuItem = builder.get_object("import_menu_item").unwrap();
