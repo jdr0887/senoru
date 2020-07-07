@@ -1,7 +1,10 @@
 use super::schema::*;
 use chrono::prelude::*;
 use diesel::*;
+use magic_crypt::MagicCrypt256;
+use magic_crypt::MagicCryptTrait;
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Insertable, AsChangeset, Associations)]
 #[changeset_options(treat_none_as_null = "true")]
@@ -32,5 +35,12 @@ impl NewItem {
             date_added: Utc::now().naive_utc(),
             date_last_modified: Utc::now().naive_utc(),
         }
+    }
+}
+
+impl Item {
+    pub fn decrypt_contents(self, mc: &MagicCrypt256) -> Result<String, Box<dyn Error>> {
+        let contents = mc.decrypt_base64_to_string(&self.contents.unwrap())?;
+        Ok(contents)
     }
 }
