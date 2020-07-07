@@ -55,15 +55,13 @@ fn start_ui(app: &gtk::Application) {
     let builder: gtk::Builder = gtk::Builder::from_string(include_str!("senoru.glade"));
     let main_window: gtk::Window = builder.get_object("main_window").unwrap();
     let dialog: gtk::Dialog = builder.get_object("passphrase_dialog").unwrap();
-    let passphrase_dialog_entry: gtk::Entry = builder.get_object("passphrase_dialog_entry").unwrap();
     let passphrase_dialog_ok_button: gtk::Button = builder.get_object("passphrase_dialog_ok_button").unwrap();
     let passphrase_dialog_cancel_button: gtk::Button = builder.get_object("passphrase_dialog_cancel_button").unwrap();
 
     db::init_db().expect("failed to initialize the db");
 
-    let dialog_clone = dialog.clone();
-    passphrase_dialog_ok_button.connect_clicked(glib::clone!(@weak app => move |_| {
-        passphrase_dialog_ok_button_clicked(&passphrase_dialog_entry, &dialog_clone, &app);
+    passphrase_dialog_ok_button.connect_clicked(glib::clone!(@weak builder, @weak app => move |_| {
+        passphrase_dialog_ok_button_clicked(&builder, &app);
     }));
     passphrase_dialog_cancel_button.connect_clicked(glib::clone!(@weak main_window => move |_| {
         std::process::exit(0);
@@ -72,7 +70,10 @@ fn start_ui(app: &gtk::Application) {
     dialog.close();
 }
 
-fn passphrase_dialog_ok_button_clicked(passphrase_dialog_entry: &gtk::Entry, dialog: &gtk::Dialog, app: &gtk::Application) {
+fn passphrase_dialog_ok_button_clicked(builder: &gtk::Builder, app: &gtk::Application) {
+    let dialog: gtk::Dialog = builder.get_object("passphrase_dialog").unwrap();
+    let passphrase_dialog_entry: gtk::Entry = builder.get_object("passphrase_dialog_entry").unwrap();
+
     let items = item_actions::find_all(Some(1i64)).expect("failed to get items from db");
     let mc = new_magic_crypt!(passphrase_dialog_entry.get_buffer().get_text(), 256);
     let first_item = items.first();
@@ -84,13 +85,8 @@ fn passphrase_dialog_ok_button_clicked(passphrase_dialog_entry: &gtk::Entry, dia
             }
             Err(e) => {
                 warn!("error message: {}", e.to_string().as_str());
-                let error_dialog = gtk::MessageDialogBuilder::new()
-                    .title("Error")
-                    .buttons(gtk::ButtonsType::Ok)
-                    .message_type(gtk::MessageType::Error)
-                    .modal(true)
-                    .text("not valid passphrase")
-                    .build();
+                let error_dialog: gtk::MessageDialog = builder.get_object("error_dialog").unwrap();
+                error_dialog.set_property_text("Invalid passphrase".into());
                 error_dialog.run();
                 error_dialog.close();
             }
