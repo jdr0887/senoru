@@ -279,6 +279,8 @@
                 <property name="valign">center</property>
                 <property name="hexpand">True</property>
                 <property name="vexpand">True</property>
+                <property name="visibility">False</property>
+                <property name="invisible_char">*</property>
                 <property name="max_width_chars">50</property>
                 <property name="placeholder_text" translatable="yes">Enter Passphrase</property>
               </object>
