@@ -53,26 +53,31 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn start_ui(app: &gtk::Application) {
     let builder: gtk::Builder = gtk::Builder::from_string(include_str!("senoru.glade"));
-    let dialog: gtk::Dialog = builder.get_object("passphrase_dialog").unwrap();
+    let passphrase_dialog: gtk::Dialog = builder.get_object("passphrase_dialog").unwrap();
     let passphrase_dialog_ok_button: gtk::Button = builder.get_object("passphrase_dialog_ok_button").unwrap();
     let passphrase_dialog_cancel_button: gtk::Button = builder.get_object("passphrase_dialog_cancel_button").unwrap();
+    let passphrase_dialog_entry: gtk::Entry = builder.get_object("passphrase_dialog_entry").unwrap();
 
     db::init_db().expect("failed to initialize the db");
 
-    passphrase_dialog_ok_button.connect_clicked(glib::clone!(@weak builder, @weak app => move |_| {
-        passphrase_dialog_ok_button_clicked(&app, &builder);
-    }));
+    passphrase_dialog_entry.connect_activate(
+        glib::clone!(@weak app, @weak builder, @weak passphrase_dialog, @weak passphrase_dialog_entry => move |_| {
+            passphrase_dialog_ok_button_clicked(&app, &builder, &passphrase_dialog, &passphrase_dialog_entry);
+        }),
+    );
+    passphrase_dialog_ok_button.connect_clicked(
+        glib::clone!(@weak app, @weak builder, @weak passphrase_dialog, @weak passphrase_dialog_entry => move |_| {
+            passphrase_dialog_ok_button_clicked(&app, &builder, &passphrase_dialog, &passphrase_dialog_entry);
+        }),
+    );
     passphrase_dialog_cancel_button.connect_clicked(|_| {
         std::process::exit(0);
     });
-    dialog.run();
-    dialog.close();
+    passphrase_dialog.run();
+    passphrase_dialog.close();
 }
 
-fn passphrase_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Builder) {
-    let dialog: gtk::Dialog = builder.get_object("passphrase_dialog").unwrap();
-    let passphrase_dialog_entry: gtk::Entry = builder.get_object("passphrase_dialog_entry").unwrap();
-
+fn passphrase_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Builder, passphrase_dialog: &gtk::Dialog, passphrase_dialog_entry: &gtk::Entry) {
     let items = item_actions::find_all(Some(1i64)).expect("failed to get items from db");
     let mc = new_magic_crypt!(passphrase_dialog_entry.get_buffer().get_text(), 256);
     let first_item = items.first();
@@ -80,7 +85,7 @@ fn passphrase_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Bu
         Some(item) => match item.clone().decrypt_contents(&mc) {
             Ok(_) => {
                 gui::launch(&app, &builder, &mc).expect("failed to launch the gui");
-                dialog.close();
+                passphrase_dialog.close();
             }
             Err(e) => {
                 warn!("error message: {}", e.to_string().as_str());
@@ -92,7 +97,7 @@ fn passphrase_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Bu
         },
         None => {
             gui::launch(&app, &builder, &mc).expect("failed to launch the gui");
-            dialog.close();
+            passphrase_dialog.close();
         }
     }
 }
