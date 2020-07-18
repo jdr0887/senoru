@@ -152,7 +152,7 @@ fn generate_password_dialog_refresh_action(builder: &gtk::Builder) {
 
 fn new_menu_item_action(mc: &magic_crypt::MagicCrypt256, store: &gtk::ListStore, tree_view: &gtk::TreeView) {
     let mut new_item = models::NewItem::new("New".into());
-    let contents: String = "".into();
+    let contents: String = "Enter text here".into();
     new_item.contents = Some(mc.encrypt_str_to_base64(contents));
     match item_actions::insert(&new_item) {
         Ok(_) => {
@@ -243,8 +243,6 @@ fn remove_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView, te
                 Some(i) => {
                     item_actions::delete(&i.id).expect("failed to delete item");
                     store.remove(&iter);
-                    let text_view_buffer = text_view.get_buffer().expect("Couldn't get buffer");
-                    text_view_buffer.set_text(&"");
                 }
                 None => {}
             }
