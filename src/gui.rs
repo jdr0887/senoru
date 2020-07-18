@@ -15,21 +15,39 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &Magic
     let import_menu_item: gtk::MenuItem = builder.get_object("import_menu_item").unwrap();
     let new_menu_item: gtk::MenuItem = builder.get_object("new_menu_item").unwrap();
     let export_menu_item: gtk::MenuItem = builder.get_object("export_menu_item").unwrap();
+    let remove_menu_item: gtk::MenuItem = gtk::MenuItemBuilder::new().label("Remove").build();
+    let generate_password_menu_item: gtk::MenuItem = builder.get_object("generate_password_menu_item").unwrap();
     let quit_menu_item: gtk::MenuItem = builder.get_object("quit_menu_item").unwrap();
-    let tree_view: gtk::TreeView = builder.get_object("tree_view").unwrap();
-    let text_view: gtk::TextView = builder.get_object("text_view").unwrap();
+    let main_tree_view: gtk::TreeView = builder.get_object("main_tree_view").unwrap();
+    let main_text_view: gtk::TextView = builder.get_object("main_text_view").unwrap();
     let about_dialog: gtk::AboutDialog = builder.get_object("about_dialog").unwrap();
+    let generate_password_dialog: gtk::Dialog = builder.get_object("generate_password_dialog").unwrap();
+    let generate_password_dialog_refresh_button: gtk::Button = builder.get_object("generate_password_dialog_refresh_button").unwrap();
+    let generate_password_dialog_cancel_button: gtk::Button = builder.get_object("generate_password_dialog_cancel_button").unwrap();
+
+    // generate_password_dialog.set_default_response(gtk::ResponseType::Cancel);
 
     let store = create_store()?;
-    tree_view.set_model(Some(&store));
+    main_tree_view.set_model(Some(&store));
 
-    let remove_menu_item: gtk::MenuItem = gtk::MenuItemBuilder::new().label("Remove").build();
-    remove_menu_item.connect_activate(glib::clone!(@strong store, @weak tree_view, @strong text_view => move |menu_item| {
-        remove_menu_item_action(&store, &tree_view, &text_view);
+    generate_password_menu_item.connect_activate(glib::clone!(@strong generate_password_dialog => move |_| {
+        generate_password_dialog.show_all();
+    }));
+
+    generate_password_dialog_refresh_button.connect_clicked(glib::clone!(@strong builder => move |_| {
+        generate_password_dialog_refresh_action(&builder);
+    }));
+
+    generate_password_dialog_cancel_button.connect_clicked(glib::clone!(@weak generate_password_dialog => move |_| {
+        generate_password_dialog.hide();
+    }));
+
+    remove_menu_item.connect_activate(glib::clone!(@strong store, @weak main_tree_view, @strong main_text_view => move |menu_item| {
+        remove_menu_item_action(&store, &main_tree_view, &main_text_view);
     }));
 
     let popup_menu: gtk::Menu = gtk::MenuBuilder::new().child(&remove_menu_item).build();
-    tree_view.connect_button_press_event(move |tree_view, event| {
+    main_tree_view.connect_button_press_event(move |tree_view, event| {
         if event.get_event_type() == gdk::EventType::ButtonPress && event.get_button() == 3 {
             debug!("event: {:?}", event);
             popup_menu.popup_easy(event.get_button(), event.get_time());
@@ -38,36 +56,36 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &Magic
         gtk::Inhibit(false)
     });
 
-    new_menu_item.connect_activate(glib::clone!(@strong mc, @strong store, @weak tree_view  => move |a| {
+    new_menu_item.connect_activate(glib::clone!(@strong mc, @strong store, @weak main_tree_view  => move |a| {
         debug!("a: {}", a);
-        new_menu_item_action(&mc, &store, &tree_view);
+        new_menu_item_action(&mc, &store, &main_tree_view);
     }));
 
     let renderer = gtk::CellRendererTextBuilder::new().editable(true).build();
-    renderer.connect_edited(glib::clone!(@strong tree_view, @strong store => move |renderer, path, new_title| {
-        tree_view_cell_renderer_edited(new_title, &tree_view, &store);
+    renderer.connect_edited(glib::clone!(@strong main_tree_view, @strong store => move |renderer, path, new_title| {
+        tree_view_cell_renderer_edited(new_title, &main_tree_view, &store);
     }));
 
     let column = gtk::TreeViewColumnBuilder::new().title("Title").sort_column_id(0i32).build();
     column.pack_start(&renderer, true);
     column.add_attribute(&renderer, "text", 0i32);
 
-    tree_view.append_column(&column);
+    main_tree_view.append_column(&column);
 
-    let tree_view_selection = tree_view.get_selection();
-    tree_view_selection.connect_changed(glib::clone!(@weak text_view, @strong mc => move |tree_selection| {
-        tree_view_selection_changed(tree_selection, &text_view, &mc);
+    let tree_view_selection = main_tree_view.get_selection();
+    tree_view_selection.connect_changed(glib::clone!(@weak main_text_view, @strong mc => move |tree_selection| {
+        tree_view_selection_changed(tree_selection, &main_text_view, &mc);
     }));
 
-    text_view.connect_key_press_event(
-        glib::clone!(@strong mc, @weak tree_view => @default-return Inhibit(false), move |text_view, _| {
-            text_view_key_press_event_action(&tree_view, text_view, &mc);
+    main_text_view.connect_key_press_event(
+        glib::clone!(@strong mc, @weak main_tree_view => @default-return Inhibit(false), move |text_view, _| {
+            text_view_key_press_event_action(&main_tree_view, text_view, &mc);
             Inhibit(false)
         }),
     );
 
     import_menu_item.connect_activate(glib::clone!(@weak main_window, @strong mc, @weak store => move |_| {
-        import_menu_item_action(&main_window, &mc, &store, &tree_view);
+        import_menu_item_action(&main_window, &mc, &store, &main_tree_view);
     }));
 
     export_menu_item.connect_activate(glib::clone!(@weak main_window, @strong mc => move |_| {
@@ -104,6 +122,32 @@ fn create_store() -> Result<gtk::ListStore, Box<dyn Error>> {
         store.set_value(&store.append(), 0u32, &value);
     }
     Ok(store)
+}
+
+fn generate_password_dialog_refresh_action(builder: &gtk::Builder) {
+    let generate_password_dialog_include_numbers_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_numbers_checkbox").unwrap();
+    let generate_password_dialog_include_uppercase_checkbox: gtk::CheckButton =
+        builder.get_object("generate_password_dialog_include_uppercase_checkbox").unwrap();
+    let generate_password_dialog_include_symbols_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_symbols_checkbox").unwrap();
+    let generate_password_dialog_length_combobox: gtk::ComboBox = builder.get_object("generate_password_dialog_length_combobox").unwrap();
+    let generate_password_dialog_count_combobox: gtk::ComboBox = builder.get_object("generate_password_dialog_count_combobox").unwrap();
+    let generate_password_dialog_textview: gtk::TextView = builder.get_object("generate_password_dialog_textview").unwrap();
+
+    let generator = passwords::PasswordGenerator::new()
+        .spaces(false)
+        .exclude_similar_characters(true)
+        .strict(true)
+        .lowercase_letters(true)
+        .numbers(generate_password_dialog_include_numbers_checkbox.get_active())
+        .symbols(generate_password_dialog_include_symbols_checkbox.get_active())
+        .uppercase_letters(generate_password_dialog_include_uppercase_checkbox.get_active())
+        .length(generate_password_dialog_length_combobox.get_active_id().unwrap().parse::<usize>().unwrap());
+    debug!("generator: {:?}", generator);
+    let passwords = generator
+        .generate(generate_password_dialog_count_combobox.get_active_id().unwrap().parse::<usize>().unwrap())
+        .expect("Couldn't generate passwords");
+    let generate_password_dialog_textview_buffer = generate_password_dialog_textview.get_buffer().expect("Couldn't get buffer");
+    generate_password_dialog_textview_buffer.set_text(&passwords.join("\n"));
 }
 
 fn new_menu_item_action(mc: &magic_crypt::MagicCrypt256, store: &gtk::ListStore, tree_view: &gtk::TreeView) {
