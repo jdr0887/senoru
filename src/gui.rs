@@ -243,6 +243,13 @@ fn remove_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView, te
                 Some(i) => {
                     item_actions::delete(&i.id).expect("failed to delete item");
                     store.remove(&iter);
+                    match store.get_iter_first() {
+                        Some(_) => {}
+                        None => {
+                            let text_view_buffer = text_view.get_buffer().expect("Couldn't get buffer");
+                            text_view_buffer.set_text(&"");
+                        }
+                    }
                 }
                 None => {}
             }
