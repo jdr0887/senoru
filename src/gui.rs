@@ -25,8 +25,6 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &Magic
     let generate_password_dialog_refresh_button: gtk::Button = builder.get_object("generate_password_dialog_refresh_button").unwrap();
     let generate_password_dialog_cancel_button: gtk::Button = builder.get_object("generate_password_dialog_cancel_button").unwrap();
 
-    // generate_password_dialog.set_default_response(gtk::ResponseType::Cancel);
-
     let store = create_store()?;
     main_tree_view.set_model(Some(&store));
 
@@ -42,12 +40,12 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &Magic
         generate_password_dialog.hide();
     }));
 
-    remove_menu_item.connect_activate(glib::clone!(@strong store, @weak main_tree_view, @strong main_text_view => move |menu_item| {
+    remove_menu_item.connect_activate(glib::clone!(@strong store, @weak main_tree_view, @strong main_text_view => move |_menu_item| {
         remove_menu_item_action(&store, &main_tree_view, &main_text_view);
     }));
 
     let popup_menu: gtk::Menu = gtk::MenuBuilder::new().child(&remove_menu_item).build();
-    main_tree_view.connect_button_press_event(move |tree_view, event| {
+    main_tree_view.connect_button_press_event(move |_tree_view, event| {
         if event.get_event_type() == gdk::EventType::ButtonPress && event.get_button() == 3 {
             debug!("event: {:?}", event);
             popup_menu.popup_easy(event.get_button(), event.get_time());
@@ -62,7 +60,7 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &Magic
     }));
 
     let renderer = gtk::CellRendererTextBuilder::new().editable(true).build();
-    renderer.connect_edited(glib::clone!(@strong main_tree_view, @strong store => move |renderer, path, new_title| {
+    renderer.connect_edited(glib::clone!(@strong main_tree_view, @strong store => move |_renderer, _path, new_title| {
         tree_view_cell_renderer_edited(new_title, &main_tree_view, &store);
     }));
 

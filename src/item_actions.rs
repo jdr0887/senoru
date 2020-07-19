@@ -15,6 +15,7 @@ pub fn find_all(limit: Option<i64>) -> Result<Vec<models::Item>, diesel::result:
     Ok(results)
 }
 
+#[allow(dead_code)]
 pub fn find_by_id(gid: i32) -> Result<Option<models::Item>, diesel::result::Error> {
     let conn = db::DB_POOL.get().expect("failed to get db connection from pool");
     let item = items::table.filter(items::dsl::id.eq(gid));
