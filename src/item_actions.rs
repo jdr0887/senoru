@@ -9,8 +9,12 @@ use crate::schema::items;
 pub fn find_all(limit: Option<i64>) -> Result<Vec<models::Item>, diesel::result::Error> {
     let conn = db::DB_POOL.get().expect("failed to get db connection from pool");
     let results = match limit {
-        Some(l) => items::table.limit(l).load::<models::Item>(&conn).expect("failed to find all"),
-        None => items::table.load::<models::Item>(&conn).expect("failed to find all"),
+        Some(l) => items::table
+            .order(items::dsl::title)
+            .limit(l)
+            .load::<models::Item>(&conn)
+            .expect("failed to find all"),
+        None => items::table.order(items::dsl::title).load::<models::Item>(&conn).expect("failed to find all"),
     };
     Ok(results)
 }
@@ -26,7 +30,11 @@ pub fn find_by_id(gid: i32) -> Result<Option<models::Item>, diesel::result::Erro
 
 pub fn find_by_title(title: &String) -> Result<Option<models::Item>, diesel::result::Error> {
     let conn = db::DB_POOL.get().expect("failed to get db connection from pool");
-    let item = items::table.filter(items::dsl::title.eq(title));
+    let mut mut_title = title.clone();
+    if !mut_title.ends_with("%") {
+        mut_title.push_str("%");
+    }
+    let item = items::table.filter(items::dsl::title.like(mut_title));
     debug!("{}", debug_query::<Sqlite, _>(&item).to_string());
     let results = item.first::<models::Item>(&conn).optional()?;
     Ok(results)
