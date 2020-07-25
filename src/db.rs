@@ -1,6 +1,8 @@
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
+use std::env;
 use std::error::Error;
+use std::path;
 
 pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 
@@ -11,11 +13,9 @@ lazy_static! {
 }
 
 pub fn create_db_connection_pool() -> DbPool {
-    let project_dir = dirs::home_dir().unwrap().join(".senoru");
-    if !project_dir.as_path().exists() {
-        std::fs::create_dir_all(&project_dir).ok();
-    }
-    let connspec = project_dir.clone().join("senoru.db");
+    let senoru_db = env::var("SENORU_DB").unwrap();
+    debug!("using SENORU_DB: {}", senoru_db);
+    let connspec = path::PathBuf::new().join(senoru_db);
     let manager = ConnectionManager::<SqliteConnection>::new(connspec.to_string_lossy());
     let pool = r2d2::Pool::builder().max_size(1).build(manager).expect("Failed to create pool.");
     pool

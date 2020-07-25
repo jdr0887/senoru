@@ -18,7 +18,9 @@ use gio::prelude::*;
 use gtk::prelude::*;
 use gtk::DialogExt;
 use log::Level;
+use std::env;
 use std::error::Error;
+use std::path;
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -33,6 +35,9 @@ mod schema;
 struct Options {
     #[structopt(short = "l", long = "log_level", long_help = "log level", default_value = "info")]
     log_level: String,
+
+    #[structopt(short = "f", long = "database_file", long_help = "database file", parse(from_os_str))]
+    database: Option<path::PathBuf>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -40,6 +45,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let log_level = Level::from_str(options.log_level.as_str()).expect("Invalid log level");
     simple_logger::init_with_level(log_level).unwrap();
     debug!("{:?}", options);
+
+    let db_path = match options.database {
+        Some(p) => p,
+        None => {
+            let project_dir = dirs::home_dir().unwrap().join(".senoru");
+            if !project_dir.as_path().exists() {
+                std::fs::create_dir_all(&project_dir).ok();
+            }
+            project_dir.clone().join("senoru.db")
+        }
+    };
+    env::set_var("SENORU_DB", db_path.as_os_str());
 
     let application: gtk::Application = gtk::Application::new(Some("com.kiluet.senoru"), Default::default()).expect("initialize failed");
 
