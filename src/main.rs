@@ -18,6 +18,8 @@ use gio::prelude::*;
 use gtk::prelude::*;
 use gtk::DialogExt;
 use log::Level;
+use passwords::analyzer;
+use passwords::scorer;
 use std::env;
 use std::error::Error;
 use std::path;
@@ -74,8 +76,18 @@ fn start_ui(app: &gtk::Application) {
     let passphrase_dialog_ok_button: gtk::Button = builder.get_object("passphrase_dialog_ok_button").unwrap();
     let passphrase_dialog_cancel_button: gtk::Button = builder.get_object("passphrase_dialog_cancel_button").unwrap();
     let passphrase_dialog_entry: gtk::Entry = builder.get_object("passphrase_dialog_entry").unwrap();
+    let passphrase_dialog_quality_score_label: gtk::Label = builder.get_object("passphrase_dialog_quality_score_label").unwrap();
 
     db::init_db().expect("failed to initialize the db");
+
+    passphrase_dialog_entry.connect_key_release_event(
+        glib::clone!(@weak passphrase_dialog_quality_score_label => @default-return Inhibit(false), move | entry, key | {
+            let passphrase = entry.get_buffer().get_text();
+            let score = scorer::score(&analyzer::analyze(&passphrase));
+            passphrase_dialog_quality_score_label.set_label(format!("{}/100", score as f32).as_str());
+            Inhibit(false)
+        }),
+    );
 
     passphrase_dialog_entry.connect_activate(
         glib::clone!(@weak app, @weak builder, @weak passphrase_dialog, @weak passphrase_dialog_entry => move |_| {
