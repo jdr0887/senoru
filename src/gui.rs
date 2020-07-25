@@ -18,8 +18,8 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &Magic
     let remove_menu_item: gtk::MenuItem = gtk::MenuItemBuilder::new().label("Remove").build();
     let generate_password_menu_item: gtk::MenuItem = builder.get_object("generate_password_menu_item").unwrap();
     let quit_menu_item: gtk::MenuItem = builder.get_object("quit_menu_item").unwrap();
-    let main_tree_view: gtk::TreeView = builder.get_object("main_tree_view").unwrap();
-    let main_text_view: gtk::TextView = builder.get_object("main_text_view").unwrap();
+    let main_tree_view: gtk::TreeView = builder.get_object("main_item_title_tree_view").unwrap();
+    let main_text_view: gtk::TextView = builder.get_object("main_item_content_text_view").unwrap();
     let about_dialog: gtk::AboutDialog = builder.get_object("about_dialog").unwrap();
     let generate_password_dialog: gtk::Dialog = builder.get_object("generate_password_dialog").unwrap();
     let generate_password_dialog_refresh_button: gtk::Button = builder.get_object("generate_password_dialog_refresh_button").unwrap();
