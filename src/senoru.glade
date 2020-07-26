@@ -246,8 +246,8 @@
     <property name="can_focus">False</property>
     <property name="modal">True</property>
     <property name="window_position">center</property>
-    <property name="default_width">380</property>
-    <property name="default_height">300</property>
+    <property name="default_width">400</property>
+    <property name="default_height">280</property>
     <property name="destroy_with_parent">True</property>
     <property name="type_hint">dialog</property>
     <property name="gravity">center</property>
@@ -263,7 +263,7 @@
         <child internal-child="action_area">
           <object class="GtkButtonBox">
             <property name="can_focus">False</property>
-            <property name="layout_style">end</property>
+            <property name="layout_style">center</property>
             <child>
               <object class="GtkButton" id="generate_password_dialog_refresh_button">
                 <property name="label">gtk-refresh</property>

@@ -84,7 +84,7 @@ fn start_ui(app: &gtk::Application) {
         glib::clone!(@weak passphrase_dialog_quality_score_label => @default-return Inhibit(false), move | entry, key | {
             let passphrase = entry.get_buffer().get_text();
             let score = scorer::score(&analyzer::analyze(&passphrase));
-            passphrase_dialog_quality_score_label.set_label(format!("{}/100", score as f32).as_str());
+            passphrase_dialog_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
             Inhibit(false)
         }),
     );

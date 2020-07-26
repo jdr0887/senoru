@@ -4,6 +4,8 @@ use gtk::prelude::*;
 use gtk::TreeViewExt;
 use magic_crypt::MagicCrypt256;
 use magic_crypt::MagicCryptTrait;
+use passwords::analyzer;
+use passwords::scorer;
 use std::error::Error;
 use std::fs;
 use std::io;
@@ -12,12 +14,11 @@ use std::io::prelude::*;
 pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &MagicCrypt256) -> Result<(), Box<dyn Error>> {
     let main_window: gtk::Window = builder.get_object("main_window").unwrap();
     let main_window_item_title_tree_view: gtk::TreeView = builder.get_object("main_window_item_title_tree_view").unwrap();
-    let generate_password_dialog_password_tree_view: gtk::TreeView = builder.get_object("generate_password_dialog_password_tree_view").unwrap();
 
-    let store = create_store()?;
+    let item_store = create_item_store()?;
 
-    connect_items(&builder, &mc, &store, &main_window_item_title_tree_view)?;
-    connect_menu_items(&main_window, &builder, &mc, &store, &main_window_item_title_tree_view)?;
+    connect_items(&builder, &mc, &item_store, &main_window_item_title_tree_view)?;
+    connect_menu_items(&main_window, &builder, &mc, &item_store, &main_window_item_title_tree_view)?;
     connect_about_dialog(&main_window, &builder)?;
     connect_generate_password_dialog(&main_window, &builder)?;
 
@@ -30,6 +31,17 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &Magic
 
     main_window.show_all();
     Ok(())
+}
+
+fn create_item_store() -> Result<gtk::ListStore, Box<dyn Error>> {
+    let store = gtk::ListStore::new(&[glib::Type::String]);
+    let items = item_actions::find_all(None).expect("failed to get Items");
+    for item in items.iter() {
+        debug!("item: {:?}", item);
+        let value = glib::value::Value::from(&item.title);
+        store.set_value(&store.append(), 0u32, &value);
+    }
+    Ok(store)
 }
 
 fn connect_items(builder: &gtk::Builder, mc: &MagicCrypt256, store: &gtk::ListStore, item_title_tree_view: &gtk::TreeView) -> Result<(), Box<dyn Error>> {
@@ -92,20 +104,50 @@ fn connect_about_dialog(main_window: &gtk::Window, builder: &gtk::Builder) -> Re
 }
 
 fn connect_generate_password_dialog(main_window: &gtk::Window, builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
-    let generate_password_dialog: gtk::Dialog = builder.get_object("generate_password_dialog").unwrap();
-    let generate_password_menu_item: gtk::MenuItem = builder.get_object("generate_password_menu_item").unwrap();
-    generate_password_menu_item.connect_activate(glib::clone!(@strong generate_password_dialog => move |_| {
-        generate_password_dialog.show_all();
+    let dialog: gtk::Dialog = builder.get_object("generate_password_dialog").unwrap();
+    let tree_view: gtk::TreeView = builder.get_object("generate_password_dialog_password_tree_view").unwrap();
+    let include_numbers_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_numbers_checkbox").unwrap();
+    let include_uppercase_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_uppercase_checkbox").unwrap();
+    let include_symbols_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_symbols_checkbox").unwrap();
+    let length_combobox: gtk::ComboBox = builder.get_object("generate_password_dialog_length_combobox").unwrap();
+    let count_combobox: gtk::ComboBox = builder.get_object("generate_password_dialog_count_combobox").unwrap();
+
+    let store = gtk::ListStore::new(&[glib::Type::String, glib::Type::String]);
+
+    tree_view.set_model(Some(&store));
+
+    let password_renderer = gtk::CellRendererTextBuilder::new().editable(true).build();
+    let password_column = gtk::TreeViewColumnBuilder::new().title("Password").sort_column_id(0i32).clickable(true).build();
+    password_column.pack_start(&password_renderer, true);
+    password_column.add_attribute(&password_renderer, "text", 0i32);
+    tree_view.append_column(&password_column);
+
+    let password_quality_renderer = gtk::CellRendererTextBuilder::new().build();
+    let password_quality_column = gtk::TreeViewColumnBuilder::new()
+        .title("Quality")
+        .sort_column_id(1i32)
+        .fixed_width(20)
+        .expand(false)
+        .resizable(false)
+        .sizing(gtk::TreeViewColumnSizing::Fixed)
+        .build();
+    password_quality_column.pack_start(&password_quality_renderer, true);
+    password_quality_column.add_attribute(&password_quality_renderer, "text", 1i32);
+    tree_view.append_column(&password_quality_column);
+
+    let menu_item: gtk::MenuItem = builder.get_object("generate_password_menu_item").unwrap();
+    menu_item.connect_activate(glib::clone!(@strong dialog => move |_| {
+        dialog.show_all();
     }));
 
-    let generate_password_dialog_refresh_button: gtk::Button = builder.get_object("generate_password_dialog_refresh_button").unwrap();
-    generate_password_dialog_refresh_button.connect_clicked(glib::clone!(@strong builder => move |_| {
-        generate_password_dialog_refresh_action(&builder);
+    let refresh_button: gtk::Button = builder.get_object("generate_password_dialog_refresh_button").unwrap();
+    refresh_button.connect_clicked(glib::clone!(@weak include_numbers_checkbox, @weak include_uppercase_checkbox, @weak include_symbols_checkbox, @weak length_combobox, @weak count_combobox, @weak store, @weak tree_view => move |_| {
+        generate_password_dialog_refresh_action(&include_numbers_checkbox, &include_uppercase_checkbox, &include_symbols_checkbox, &length_combobox, &count_combobox, &store, &tree_view);
     }));
 
-    let generate_password_dialog_cancel_button: gtk::Button = builder.get_object("generate_password_dialog_cancel_button").unwrap();
-    generate_password_dialog_cancel_button.connect_clicked(glib::clone!(@weak generate_password_dialog => move |_| {
-        generate_password_dialog.hide();
+    let cancel_button: gtk::Button = builder.get_object("generate_password_dialog_cancel_button").unwrap();
+    cancel_button.connect_clicked(glib::clone!(@weak dialog => move |_| {
+        dialog.hide();
     }));
 
     Ok(())
@@ -143,40 +185,32 @@ fn connect_menu_items(
     Ok(())
 }
 
-fn create_store() -> Result<gtk::ListStore, Box<dyn Error>> {
-    let store = gtk::ListStore::new(&[glib::Type::String]);
-    let items = item_actions::find_all(None).expect("failed to get Items");
-    for item in items.iter() {
-        debug!("item: {:?}", item);
-        let value = glib::value::Value::from(&item.title);
-        store.set_value(&store.append(), 0u32, &value);
-    }
-    Ok(store)
-}
-
-fn generate_password_dialog_refresh_action(builder: &gtk::Builder) {
-    let generate_password_dialog_include_numbers_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_numbers_checkbox").unwrap();
-    let generate_password_dialog_include_uppercase_checkbox: gtk::CheckButton =
-        builder.get_object("generate_password_dialog_include_uppercase_checkbox").unwrap();
-    let generate_password_dialog_include_symbols_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_symbols_checkbox").unwrap();
-    let generate_password_dialog_length_combobox: gtk::ComboBox = builder.get_object("generate_password_dialog_length_combobox").unwrap();
-    let generate_password_dialog_count_combobox: gtk::ComboBox = builder.get_object("generate_password_dialog_count_combobox").unwrap();
-
+fn generate_password_dialog_refresh_action(
+    include_numbers_checkbox: &gtk::CheckButton,
+    include_uppercase_checkbox: &gtk::CheckButton,
+    include_symbols_checkbox: &gtk::CheckButton,
+    length_combobox: &gtk::ComboBox,
+    count_combobox: &gtk::ComboBox,
+    store: &gtk::ListStore,
+    tree_view: &gtk::TreeView,
+) {
     let generator = passwords::PasswordGenerator::new()
         .spaces(false)
         .exclude_similar_characters(true)
         .strict(true)
         .lowercase_letters(true)
-        .numbers(generate_password_dialog_include_numbers_checkbox.get_active())
-        .symbols(generate_password_dialog_include_symbols_checkbox.get_active())
-        .uppercase_letters(generate_password_dialog_include_uppercase_checkbox.get_active())
-        .length(generate_password_dialog_length_combobox.get_active_id().unwrap().parse::<usize>().unwrap());
-    debug!("generator: {:?}", generator);
+        .numbers(include_numbers_checkbox.get_active())
+        .symbols(include_symbols_checkbox.get_active())
+        .uppercase_letters(include_uppercase_checkbox.get_active())
+        .length(length_combobox.get_active_id().unwrap().parse::<usize>().unwrap());
     let passwords = generator
-        .generate(generate_password_dialog_count_combobox.get_active_id().unwrap().parse::<usize>().unwrap())
+        .generate(count_combobox.get_active_id().unwrap().parse::<usize>().unwrap())
         .expect("Couldn't generate passwords");
-    // let generate_password_dialog_textview_buffer = generate_password_dialog_textview.get_buffer().expect("Couldn't get buffer");
-    // generate_password_dialog_textview_buffer.set_text(&passwords.join("\n"));
+    store.clear();
+    for password in passwords {
+        let score = scorer::score(&analyzer::analyze(&password));
+        store.insert_with_values(None, &[0, 1], &[&password, &format!("{}/100", score as i32).as_str()]);
+    }
 }
 
 fn new_menu_item_action(mc: &magic_crypt::MagicCrypt256, store: &gtk::ListStore, tree_view: &gtk::TreeView) {
