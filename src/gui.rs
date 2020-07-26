@@ -81,7 +81,7 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &Magic
         tree_view_selection_changed(tree_selection, &main_item_content_text_view, &mc);
     }));
 
-    main_item_content_text_view.connect_key_press_event(
+    main_item_content_text_view.connect_key_release_event(
         glib::clone!(@strong mc, @weak main_item_title_tree_view => @default-return Inhibit(false), move |text_view, _| {
             text_view_key_press_event_action(&main_item_title_tree_view, text_view, &mc);
             Inhibit(false)
