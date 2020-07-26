@@ -30,11 +30,7 @@ pub fn find_by_id(gid: i32) -> Result<Option<models::Item>, diesel::result::Erro
 
 pub fn find_by_title(title: &String) -> Result<Option<models::Item>, diesel::result::Error> {
     let conn = db::DB_POOL.get().expect("failed to get db connection from pool");
-    let mut mut_title = title.clone();
-    if !mut_title.ends_with("%") {
-        mut_title.push_str("%");
-    }
-    let item = items::table.filter(items::dsl::title.like(mut_title));
+    let item = items::table.filter(items::dsl::title.eq(title));
     debug!("{}", debug_query::<Sqlite, _>(&item).to_string());
     let results = item.first::<models::Item>(&conn).optional()?;
     Ok(results)
