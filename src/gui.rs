@@ -2,7 +2,6 @@ use crate::item_actions;
 use crate::models;
 use gtk::prelude::*;
 use gtk::TreeViewExt;
-use magic_crypt::MagicCrypt256;
 use magic_crypt::MagicCryptTrait;
 use passwords::analyzer;
 use passwords::scorer;
@@ -11,18 +10,22 @@ use std::fs;
 use std::io;
 use std::io::prelude::*;
 
-pub fn launch(application: &gtk::Application, builder: &gtk::Builder, mc: &MagicCrypt256) -> Result<(), Box<dyn Error>> {
-    let main_window: gtk::Window = builder.get_object("main_window").unwrap();
-    let main_window_item_title_tree_view: gtk::TreeView = builder.get_object("main_window_item_title_tree_view").unwrap();
+pub fn launch(app_core: &mut crate::AppCore) -> Result<(), Box<dyn Error>> {
+    let main_window: gtk::Window = app_core.builder.get_object("main_window").unwrap();
+    let main_window_item_title_tree_view: gtk::TreeView = app_core.builder.get_object("main_window_item_title_tree_view").unwrap();
 
     let item_store = create_item_store()?;
 
-    connect_items(&builder, &mc, &item_store, &main_window_item_title_tree_view)?;
-    connect_menu_items(&main_window, &builder, &mc, &item_store, &main_window_item_title_tree_view)?;
-    connect_about_dialog(&main_window, &builder)?;
-    connect_generate_password_dialog(&main_window, &builder)?;
+    connect_items(&app_core, &item_store, &main_window_item_title_tree_view)?;
+    connect_menu_items(&app_core, &main_window, &item_store, &main_window_item_title_tree_view)?;
+    connect_about_dialog(&main_window, &app_core.builder)?;
+    connect_change_master_key_dialog(&main_window, &app_core.builder)?;
+    connect_generate_password_dialog(&app_core.builder)?;
 
-    main_window.set_application(Some(application));
+    main_window.set_application(Some(&app_core.application));
+
+    // let magic_crypt = new_magic_crypt!("asdf", 256);
+    // app_core.magic_crypt = magic_crypt;
 
     main_window.connect_delete_event(glib::clone!(@weak main_window => @default-return Inhibit(false), move |_, _| {
         main_window.close();
@@ -44,9 +47,9 @@ fn create_item_store() -> Result<gtk::ListStore, Box<dyn Error>> {
     Ok(store)
 }
 
-fn connect_items(builder: &gtk::Builder, mc: &MagicCrypt256, store: &gtk::ListStore, item_title_tree_view: &gtk::TreeView) -> Result<(), Box<dyn Error>> {
-    let item_content_text_view: gtk::TextView = builder.get_object("main_window_item_content_text_view").unwrap();
-    let item_title_search_entry: gtk::SearchEntry = builder.get_object("main_window_item_title_search_entry").unwrap();
+fn connect_items(app_core: &crate::AppCore, store: &gtk::ListStore, item_title_tree_view: &gtk::TreeView) -> Result<(), Box<dyn Error>> {
+    let item_content_text_view: gtk::TextView = app_core.builder.get_object("main_window_item_content_text_view").unwrap();
+    let item_title_search_entry: gtk::SearchEntry = app_core.builder.get_object("main_window_item_title_search_entry").unwrap();
 
     item_title_tree_view.set_model(Some(store));
     item_title_tree_view.set_search_entry(Some(&item_title_search_entry));
@@ -77,6 +80,7 @@ fn connect_items(builder: &gtk::Builder, mc: &MagicCrypt256, store: &gtk::ListSt
     });
 
     let tree_view_selection = item_title_tree_view.get_selection();
+    let mc = app_core.magic_crypt.clone();
     tree_view_selection.connect_changed(glib::clone!(@weak item_content_text_view, @strong mc => move |tree_selection| {
         tree_view_selection_changed(tree_selection, &item_content_text_view, &mc);
     }));
@@ -103,7 +107,12 @@ fn connect_about_dialog(main_window: &gtk::Window, builder: &gtk::Builder) -> Re
     Ok(())
 }
 
-fn connect_generate_password_dialog(main_window: &gtk::Window, builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
+fn connect_change_master_key_dialog(main_window: &gtk::Window, builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
+    let dialog: gtk::Dialog = builder.get_object("change_master_key_dialog").unwrap();
+    Ok(())
+}
+
+fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
     let dialog: gtk::Dialog = builder.get_object("generate_password_dialog").unwrap();
     let tree_view: gtk::TreeView = builder.get_object("generate_password_dialog_password_tree_view").unwrap();
     let include_numbers_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_numbers_checkbox").unwrap();
@@ -141,8 +150,8 @@ fn connect_generate_password_dialog(main_window: &gtk::Window, builder: &gtk::Bu
     }));
 
     let refresh_button: gtk::Button = builder.get_object("generate_password_dialog_refresh_button").unwrap();
-    refresh_button.connect_clicked(glib::clone!(@weak include_numbers_checkbox, @weak include_uppercase_checkbox, @weak include_symbols_checkbox, @weak length_combobox, @weak count_combobox, @weak store, @weak tree_view => move |_| {
-        generate_password_dialog_refresh_action(&include_numbers_checkbox, &include_uppercase_checkbox, &include_symbols_checkbox, &length_combobox, &count_combobox, &store, &tree_view);
+    refresh_button.connect_clicked(glib::clone!(@weak include_numbers_checkbox, @weak include_uppercase_checkbox, @weak include_symbols_checkbox, @weak length_combobox, @weak count_combobox, @weak store => move |_| {
+        generate_password_dialog_refresh_action(&include_numbers_checkbox, &include_uppercase_checkbox, &include_symbols_checkbox, &length_combobox, &count_combobox, &store);
     }));
 
     let cancel_button: gtk::Button = builder.get_object("generate_password_dialog_cancel_button").unwrap();
@@ -154,31 +163,31 @@ fn connect_generate_password_dialog(main_window: &gtk::Window, builder: &gtk::Bu
 }
 
 fn connect_menu_items(
+    app_core: &crate::AppCore,
     main_window: &gtk::Window,
-    builder: &gtk::Builder,
-    mc: &magic_crypt::MagicCrypt256,
     store: &gtk::ListStore,
     item_title_tree_view: &gtk::TreeView,
 ) -> Result<(), Box<dyn Error>> {
-    let new_menu_item: gtk::MenuItem = builder.get_object("new_menu_item").unwrap();
+    let mc = app_core.magic_crypt.clone();
+    let new_menu_item: gtk::MenuItem = app_core.builder.get_object("new_menu_item").unwrap();
     new_menu_item.connect_activate(glib::clone!(@strong mc, @strong store, @weak item_title_tree_view  => move |a| {
         debug!("a: {}", a);
         new_menu_item_action(&mc, &store, &item_title_tree_view);
     }));
 
-    let import_menu_item: gtk::MenuItem = builder.get_object("import_menu_item").unwrap();
+    let import_menu_item: gtk::MenuItem = app_core.builder.get_object("import_menu_item").unwrap();
     import_menu_item.connect_activate(
         glib::clone!(@weak main_window, @strong mc, @weak store, @weak item_title_tree_view => move |_| {
             import_menu_item_action(&main_window, &mc, &store, &item_title_tree_view);
         }),
     );
 
-    let export_menu_item: gtk::MenuItem = builder.get_object("export_menu_item").unwrap();
+    let export_menu_item: gtk::MenuItem = app_core.builder.get_object("export_menu_item").unwrap();
     export_menu_item.connect_activate(glib::clone!(@weak main_window, @strong mc => move |_| {
         export_menu_item_action(&mc);
     }));
 
-    let quit_menu_item: gtk::MenuItem = builder.get_object("quit_menu_item").unwrap();
+    let quit_menu_item: gtk::MenuItem = app_core.builder.get_object("quit_menu_item").unwrap();
     quit_menu_item.connect_activate(glib::clone!(@weak main_window => move |_| {
         main_window.close();
     }));
@@ -192,7 +201,6 @@ fn generate_password_dialog_refresh_action(
     length_combobox: &gtk::ComboBox,
     count_combobox: &gtk::ComboBox,
     store: &gtk::ListStore,
-    tree_view: &gtk::TreeView,
 ) {
     let generator = passwords::PasswordGenerator::new()
         .spaces(false)

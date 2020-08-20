@@ -32,6 +32,22 @@ mod item_actions;
 mod models;
 mod schema;
 
+pub struct AppCore {
+    pub application: gtk::Application,
+    pub builder: gtk::Builder,
+    pub magic_crypt: magic_crypt::MagicCrypt256,
+}
+
+impl AppCore {
+    pub fn new(application: gtk::Application, builder: gtk::Builder, magic_crypt: magic_crypt::MagicCrypt256) -> AppCore {
+        AppCore {
+            application,
+            builder,
+            magic_crypt,
+        }
+    }
+}
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "senoru", about = "senoru")]
 struct Options {
@@ -81,7 +97,7 @@ fn start_ui(app: &gtk::Application) {
     db::init_db().expect("failed to initialize the db");
 
     key_dialog_entry.connect_key_release_event(
-        glib::clone!(@weak key_dialog_quality_score_label => @default-return Inhibit(false), move | entry, key | {
+        glib::clone!(@weak key_dialog_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
             let key = entry.get_buffer().get_text();
             let score = scorer::score(&analyzer::analyze(&key));
             key_dialog_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
@@ -104,12 +120,13 @@ fn start_ui(app: &gtk::Application) {
 
 fn key_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Builder, key_dialog: &gtk::Dialog, key_dialog_entry: &gtk::Entry) {
     let items = item_actions::find_all(Some(1i64)).expect("failed to get items from db");
-    let mc = new_magic_crypt!(key_dialog_entry.get_buffer().get_text(), 256);
+    let magic_crypt = new_magic_crypt!(key_dialog_entry.get_buffer().get_text(), 256);
+    let mut app_core = AppCore::new(app.clone(), builder.clone(), magic_crypt.clone());
     let first_item = items.first();
     match first_item {
-        Some(item) => match item.clone().decrypt_contents(&mc) {
+        Some(item) => match item.clone().decrypt_contents(&magic_crypt) {
             Ok(_) => {
-                gui::launch(&app, &builder, &mc).expect("failed to launch the gui");
+                gui::launch(&mut app_core).expect("failed to launch the gui");
                 key_dialog.close();
             }
             Err(e) => {
@@ -121,7 +138,7 @@ fn key_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Builder, 
             }
         },
         None => {
-            gui::launch(&app, &builder, &mc).expect("failed to launch the gui");
+            gui::launch(&mut app_core).expect("failed to launch the gui");
             key_dialog.close();
         }
     }
