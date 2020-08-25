@@ -2,10 +2,6 @@
 extern crate diesel;
 #[macro_use]
 extern crate log;
-extern crate gdk;
-extern crate gio;
-extern crate glib;
-extern crate gtk;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -14,10 +10,8 @@ extern crate diesel_migrations;
 extern crate magic_crypt;
 extern crate base64;
 
-use gio::prelude::*;
-use gtk::prelude::*;
-use gtk::DialogExt;
 use log::Level;
+use orbtk::prelude::*;
 use passwords::analyzer;
 use passwords::scorer;
 use std::env;
@@ -27,10 +21,209 @@ use std::str::FromStr;
 use structopt::StructOpt;
 
 mod db;
-mod gui;
 mod item_actions;
 mod models;
 mod schema;
+
+const KEY_INPUT_ID: &str = "key_input";
+
+enum LoginAction {
+    Authenticate,
+    ShowPopup,
+    ClosePopup,
+}
+
+#[derive(Default, AsAny)]
+struct LoginFormState {
+    authenticated: bool,
+    action: Option<LoginAction>,
+    key_input: Entity,
+    show_popup: bool,
+    popup: Option<Entity>,
+}
+
+impl LoginFormState {
+    fn authenticate(&mut self) {
+        if !self.show_popup {
+            self.action = Some(LoginAction::Authenticate);
+        }
+    }
+
+    fn show_popup(&mut self) {
+        if !self.show_popup {
+            self.action = Some(LoginAction::ShowPopup);
+        }
+    }
+
+    fn close_popup(&mut self) {
+        if self.show_popup {
+            self.action = Some(LoginAction::ClosePopup);
+        }
+    }
+
+    // creates a popup based on the authenticated field and returns its entity
+    fn create_popup(&self, target: Entity, build_context: &mut BuildContext) -> Entity {
+        let (msg, text_color) = match self.authenticated {
+            true => ("Login success!", "#4CA64C"),
+            false => ("Login failed!", "#FF3232"),
+        };
+
+        Popup::new()
+            .style("popup")
+            .target(target)
+            .open(true)
+            .width(175.0)
+            .height(125.0)
+            .h_align("center")
+            .v_align("center")
+            .child(
+                Container::new()
+                    .border_radius(3.0)
+                    .border_width(2.0)
+                    .padding(8.0)
+                    .child(
+                        TextBlock::new()
+                            .font_size(18.0)
+                            .foreground(text_color)
+                            .h_align("center")
+                            .v_align("top")
+                            .text(msg)
+                            .build(build_context),
+                    )
+                    .child(
+                        Button::new()
+                            .h_align("center")
+                            .v_align("center")
+                            .text("OK")
+                            // Send a ClosePopup action to LoginFormState when button is clicked
+                            .on_click(move |states, _point| -> bool {
+                                states.get_mut::<LoginFormState>(target).close_popup();
+                                true
+                            })
+                            .build(build_context),
+                    )
+                    .build(build_context),
+            )
+            .build(build_context)
+    }
+}
+
+impl State for LoginFormState {
+    fn init(&mut self, _: &mut Registry, ctx: &mut Context) {
+        self.authenticated = false;
+        self.key_input = ctx.entity_of_child(KEY_INPUT_ID).expect("Invalid Key");
+        self.show_popup = false;
+        self.popup = None;
+    }
+
+    fn update(&mut self, reg: &mut Registry, ctx: &mut Context) {
+        if let Some(action) = &self.action {
+            match action {
+                LoginAction::Authenticate => {
+                    let key = ctx.get_widget(self.key_input).get::<String16>("text").as_string();
+
+                    let items = item_actions::find_all(Some(1i64)).expect("failed to get items from db");
+                    let mc = new_magic_crypt!(key, 256);
+                    let first_item = items.first();
+                    match first_item {
+                        Some(item) => match item.clone().decrypt_contents(&mc) {
+                            Ok(_) => {
+                                self.authenticated = true;
+                            }
+                            Err(e) => {
+                                warn!("error message: {}", e.to_string().as_str());
+                                self.authenticated = false;
+                            }
+                        },
+                        None => {
+                            self.authenticated = true;
+                        }
+                    }
+
+                    self.show_popup();
+                    self.update(reg, ctx);
+                }
+                // creates a popup then attach it to the overlay
+                LoginAction::ShowPopup => {
+                    let current_entity = ctx.entity;
+                    let build_context = &mut ctx.build_context();
+                    let popup = self.create_popup(current_entity, build_context);
+                    build_context.append_child(current_entity, popup);
+                    self.show_popup = true;
+                    self.popup = Some(popup);
+                }
+                // delete popup from widget tree.
+                LoginAction::ClosePopup => {
+                    if let Some(popup) = self.popup {
+                        self.show_popup = false;
+                        ctx.remove_child(popup);
+                    }
+                }
+            }
+
+            self.action = None;
+        }
+    }
+}
+
+widget!(LoginForm<LoginFormState>);
+
+impl Template for LoginForm {
+    fn template(self, id: Entity, ctx: &mut BuildContext) -> Self {
+        self.name("LoginForm").child(
+            Grid::new()
+                .columns(Columns::create().push(64.0).push(64.0))
+                .rows(Rows::create().push(48.0).push(48.0).push(48.0).push(48.0))
+                .v_align("start")
+                .h_align("center")
+                .child(
+                    TextBlock::new()
+                        .text("Welcome to SENORU")
+                        .font_size(18.0)
+                        .v_align("center")
+                        .h_align("center")
+                        .attach(Grid::column(0))
+                        .attach(Grid::row(0))
+                        .attach(Grid::column_span(4))
+                        .build(ctx),
+                )
+                .child(
+                    TextBlock::new()
+                        .text("Key:")
+                        .v_align("center")
+                        .h_align("center")
+                        .attach(Grid::column(0))
+                        .attach(Grid::row(1))
+                        .build(ctx),
+                )
+                .child(
+                    PasswordBox::new()
+                        .id(KEY_INPUT_ID)
+                        .water_mark("Key")
+                        .v_align("center")
+                        .h_align("left")
+                        .attach(Grid::column(1))
+                        .attach(Grid::row(1))
+                        .max_width(160.0)
+                        .build(ctx),
+                )
+                .child(
+                    Button::new()
+                        .text("Login")
+                        .v_align("center")
+                        .h_align("end")
+                        .attach(Grid::column(1))
+                        .attach(Grid::row(2))
+                        .on_click(move |states, _| -> bool {
+                            states.get_mut::<LoginFormState>(id).authenticate();
+                            false
+                        })
+                        .build(ctx),
+                )
+                .build(ctx),
+        )
+    }
+}
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "senoru", about = "senoru")]
@@ -41,7 +234,6 @@ struct Options {
     #[structopt(short = "f", long = "database_file", long_help = "database file", parse(from_os_str))]
     database: Option<path::PathBuf>,
 }
-
 fn main() -> Result<(), Box<dyn Error>> {
     let options = Options::from_args();
     let log_level = Level::from_str(options.log_level.as_str()).expect("Invalid log level");
@@ -60,69 +252,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     env::set_var("SENORU_DB", db_path.as_os_str());
 
-    let application: gtk::Application = gtk::Application::new(Some("com.kiluet.senoru"), Default::default()).expect("initialize failed");
-
-    application.connect_activate(move |app| {
-        start_ui(&app);
-    });
-    application.run(&[]);
-
+    Application::new()
+        .window(|ctx| {
+            Window::new()
+                .title("SENORU - Secure Notepad in Rust")
+                .position((200.0, 200.0))
+                .size(400.0, 180.0)
+                .resizeable(true)
+                .child(LoginForm::new().build(ctx))
+                .build(ctx)
+        })
+        .run();
     Ok(())
-}
-
-fn start_ui(app: &gtk::Application) {
-    let builder: gtk::Builder = gtk::Builder::from_string(include_str!("senoru.glade"));
-    let key_dialog: gtk::Dialog = builder.get_object("key_dialog").unwrap();
-    let key_dialog_ok_button: gtk::Button = builder.get_object("key_dialog_ok_button").unwrap();
-    let key_dialog_cancel_button: gtk::Button = builder.get_object("key_dialog_cancel_button").unwrap();
-    let key_dialog_entry: gtk::Entry = builder.get_object("key_dialog_entry").unwrap();
-    let key_dialog_quality_score_label: gtk::Label = builder.get_object("key_dialog_quality_score_label").unwrap();
-
-    db::init_db().expect("failed to initialize the db");
-
-    key_dialog_entry.connect_key_release_event(
-        glib::clone!(@weak key_dialog_quality_score_label => @default-return Inhibit(false), move | entry, key | {
-            let key = entry.get_buffer().get_text();
-            let score = scorer::score(&analyzer::analyze(&key));
-            key_dialog_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
-            Inhibit(false)
-        }),
-    );
-
-    key_dialog_entry.connect_activate(glib::clone!(@weak app, @weak builder, @weak key_dialog, @weak key_dialog_entry => move |_| {
-        key_dialog_ok_button_clicked(&app, &builder, &key_dialog, &key_dialog_entry);
-    }));
-    key_dialog_ok_button.connect_clicked(glib::clone!(@weak app, @weak builder, @weak key_dialog, @weak key_dialog_entry => move |_| {
-        key_dialog_ok_button_clicked(&app, &builder, &key_dialog, &key_dialog_entry);
-    }));
-    key_dialog_cancel_button.connect_clicked(|_| {
-        std::process::exit(0);
-    });
-    key_dialog.run();
-    key_dialog.close();
-}
-
-fn key_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Builder, key_dialog: &gtk::Dialog, key_dialog_entry: &gtk::Entry) {
-    let items = item_actions::find_all(Some(1i64)).expect("failed to get items from db");
-    let mc = new_magic_crypt!(key_dialog_entry.get_buffer().get_text(), 256);
-    let first_item = items.first();
-    match first_item {
-        Some(item) => match item.clone().decrypt_contents(&mc) {
-            Ok(_) => {
-                gui::launch(&app, &builder, &mc).expect("failed to launch the gui");
-                key_dialog.close();
-            }
-            Err(e) => {
-                warn!("error message: {}", e.to_string().as_str());
-                let error_dialog: gtk::MessageDialog = builder.get_object("error_dialog").unwrap();
-                error_dialog.set_property_text("Invalid key".into());
-                error_dialog.run();
-                error_dialog.close();
-            }
-        },
-        None => {
-            gui::launch(&app, &builder, &mc).expect("failed to launch the gui");
-            key_dialog.close();
-        }
-    }
 }

@@ -11,13 +11,10 @@ chrono = { version = ">=0.4.13", features = ["serde"]}
 diesel = { version = ">=1.4.5", features = ["sqlite", "r2d2", "chrono"] }
 diesel_migrations = ">=1.4.0"
 dirs = ">=3.0.1" 
-gdk = ">=0.13.0"
-gtk = { version = ">=0.9.0", features = ["v3_24"] }
-gio = { version = ">=0.9.0", features = ["v2_44"] }
-glib = ">=0.9.3"
 lazy_static = ">=1.4.0"
 log = { version = ">=0.4.8", features = ["std"] }
 magic-crypt = ">=3.1.3"
+orbtk = { git = "https://github.com/redox-os/orbtk.git", branch = "develop" }
 passwords = ">=3.1.2"
 r2d2 = ">=0.8.9"
 simple_logger = ">=1.6.0"
