@@ -662,6 +662,7 @@
     <property name="modal">True</property>
     <property name="window_position">center</property>
     <property name="type_hint">dialog</property>
+    <property name="deletable">False</property>
     <property name="gravity">center</property>
     <property name="transient_for">main_window</property>
     <child type="titlebar">
@@ -750,6 +751,7 @@
                 <property name="hexpand">True</property>
                 <property name="vexpand">True</property>
                 <property name="max_length">50</property>
+                <property name="visibility">False</property>
                 <property name="invisible_char">*</property>
                 <property name="activates_default">True</property>
                 <property name="width_chars">28</property>
