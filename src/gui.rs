@@ -114,6 +114,11 @@ fn connect_change_master_key_dialog(main_window: &gtk::Window, builder: &gtk::Bu
 
 fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
     let dialog: gtk::Dialog = builder.get_object("generate_password_dialog").unwrap();
+    dialog.hide_on_delete();
+    dialog.connect_delete_event(|dialog, event| {
+        dialog.hide();
+        Inhibit(true)
+    });
     let tree_view: gtk::TreeView = builder.get_object("generate_password_dialog_password_tree_view").unwrap();
     let include_numbers_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_numbers_checkbox").unwrap();
     let include_uppercase_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_uppercase_checkbox").unwrap();
@@ -145,8 +150,8 @@ fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
     tree_view.append_column(&password_quality_column);
 
     let menu_item: gtk::MenuItem = builder.get_object("generate_password_menu_item").unwrap();
-    menu_item.connect_activate(glib::clone!(@strong dialog => move |_| {
-        dialog.show_all();
+    menu_item.connect_activate(glib::clone!(@weak dialog => move |_| {
+        dialog.show();
     }));
 
     let refresh_button: gtk::Button = builder.get_object("generate_password_dialog_refresh_button").unwrap();
