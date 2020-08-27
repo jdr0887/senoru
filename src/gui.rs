@@ -18,7 +18,7 @@ pub fn launch(app_core: &mut crate::AppCore) -> Result<(), Box<dyn Error>> {
 
     connect_items(&app_core, &item_store, &main_window_item_title_tree_view)?;
     connect_menu_items(&app_core, &main_window, &item_store, &main_window_item_title_tree_view)?;
-    connect_about_dialog(&main_window, &app_core.builder)?;
+    connect_about_dialog(&app_core.builder)?;
     connect_change_master_key_dialog(&main_window, &app_core.builder)?;
     connect_generate_password_dialog(&app_core.builder)?;
 
@@ -94,11 +94,11 @@ fn connect_items(app_core: &crate::AppCore, store: &gtk::ListStore, item_title_t
     Ok(())
 }
 
-fn connect_about_dialog(main_window: &gtk::Window, builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
+fn connect_about_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
     let about_dialog: gtk::AboutDialog = builder.get_object("about_dialog").unwrap();
     let about_menu_item: gtk::MenuItem = builder.get_object("about_menu_item").unwrap();
 
-    about_menu_item.connect_activate(glib::clone!(@weak main_window => move |_| {
+    about_menu_item.connect_activate(glib::clone!(@weak about_dialog => move |_| {
         about_dialog.show();
         about_dialog.run();
         about_dialog.hide();
