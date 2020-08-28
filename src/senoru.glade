@@ -122,9 +122,12 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="max_length">40</property>
+                <property name="visibility">False</property>
+                <property name="invisible_char">*</property>
                 <property name="width_chars">30</property>
                 <property name="max_width_chars">40</property>
                 <property name="primary_icon_stock">gtk-dialog-authentication</property>
+                <property name="input_purpose">password</property>
               </object>
               <packing>
                 <property name="left_attach">1</property>
@@ -136,9 +139,12 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="max_length">40</property>
+                <property name="visibility">False</property>
+                <property name="invisible_char">*</property>
                 <property name="width_chars">30</property>
                 <property name="max_width_chars">40</property>
                 <property name="primary_icon_stock">gtk-dialog-authentication</property>
+                <property name="input_purpose">password</property>
               </object>
               <packing>
                 <property name="left_attach">1</property>
@@ -194,22 +200,6 @@
                       </object>
                     </child>
                     <child>
-                      <object class="GtkMenuItem" id="import_menu_item">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="label">Import</property>
-                        <property name="use_underline">True</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkMenuItem" id="export_menu_item">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="label">Export</property>
-                        <property name="use_underline">True</property>
-                      </object>
-                    </child>
-                    <child>
                       <object class="GtkSeparatorMenuItem">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
@@ -239,10 +229,17 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkMenuItem" id="change_master_key_menu_item">
+                      <object class="GtkMenuItem" id="import_menu_item">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label">Change Master Key</property>
+                        <property name="label">Import</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="export_menu_item">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="label">Export</property>
                       </object>
                     </child>
                     <child>
@@ -250,6 +247,13 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="label">Generate Password</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="change_master_key_menu_item">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="label">Change Master Key</property>
                       </object>
                     </child>
                   </object>

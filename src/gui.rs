@@ -10,7 +10,7 @@ use std::fs;
 use std::io;
 use std::io::prelude::*;
 
-pub fn launch(app_core: &mut crate::AppCore) -> Result<(), Box<dyn Error>> {
+pub fn launch<'a>(app_core: &'a crate::AppCore) -> Result<(), Box<dyn Error>> {
     let main_window: gtk::Window = app_core.builder.get_object("main_window").unwrap();
     let main_window_item_title_tree_view: gtk::TreeView = app_core.builder.get_object("main_window_item_title_tree_view").unwrap();
 
@@ -18,14 +18,11 @@ pub fn launch(app_core: &mut crate::AppCore) -> Result<(), Box<dyn Error>> {
 
     connect_items(&app_core, &item_store, &main_window_item_title_tree_view)?;
     connect_menu_items(&app_core, &main_window, &item_store, &main_window_item_title_tree_view)?;
-    connect_about_dialog(&app_core.builder)?;
-    connect_change_master_key_dialog(&main_window, &app_core.builder)?;
+    connect_about_dialog(&app_core)?;
+    connect_change_master_key_dialog(&app_core)?;
     connect_generate_password_dialog(&app_core.builder)?;
 
     main_window.set_application(Some(&app_core.application));
-
-    // let magic_crypt = new_magic_crypt!("asdf", 256);
-    // app_core.magic_crypt = magic_crypt;
 
     main_window.connect_delete_event(glib::clone!(@weak main_window => @default-return Inhibit(false), move |_, _| {
         main_window.close();
@@ -94,28 +91,57 @@ fn connect_items(app_core: &crate::AppCore, store: &gtk::ListStore, item_title_t
     Ok(())
 }
 
-fn connect_about_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
-    let about_dialog: gtk::AboutDialog = builder.get_object("about_dialog").unwrap();
-    let about_menu_item: gtk::MenuItem = builder.get_object("about_menu_item").unwrap();
+fn connect_about_dialog(app_core: &crate::AppCore) -> Result<(), Box<dyn Error>> {
+    let dialog: gtk::AboutDialog = app_core.builder.get_object("about_dialog").unwrap();
+    let menu_item: gtk::MenuItem = app_core.builder.get_object("about_menu_item").unwrap();
 
-    about_menu_item.connect_activate(glib::clone!(@weak about_dialog => move |_| {
-        about_dialog.show();
-        about_dialog.run();
-        about_dialog.hide();
+    menu_item.connect_activate(glib::clone!(@weak dialog => move |_| {
+        dialog.show();
+        dialog.run();
+        dialog.hide();
     }));
 
     Ok(())
 }
 
-fn connect_change_master_key_dialog(main_window: &gtk::Window, builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
-    let dialog: gtk::Dialog = builder.get_object("change_master_key_dialog").unwrap();
+fn connect_change_master_key_dialog<'a>(app_core: &'a crate::AppCore) -> Result<(), Box<dyn Error>> {
+    let dialog: gtk::Dialog = app_core.builder.get_object("change_master_key_dialog").unwrap();
+    let menu_item: gtk::MenuItem = app_core.builder.get_object("change_master_key_menu_item").unwrap();
+    let current_key_entry: gtk::Entry = app_core.builder.get_object("change_master_key_dialog_current_key_entry").unwrap();
+    let new_key_entry: gtk::Entry = app_core.builder.get_object("change_master_key_dialog_new_key_entry").unwrap();
+    let new_key_confirmation_entry: gtk::Entry = app_core.builder.get_object("change_master_key_dialog_new_key_confirmation_entry").unwrap();
+
+    menu_item.connect_activate(glib::clone!(@weak dialog => move |_| {
+        dialog.show_all();
+    }));
+
+    let ok_button: gtk::Button = app_core.builder.get_object("change_master_key_dialog_ok_button").unwrap();
+    ok_button.connect_clicked(move |_| {
+        let mut all_items = item_actions::find_all(None).expect("failed to get items from db");
+        let new_magic_crypt = new_magic_crypt!(new_key_entry.get_buffer().get_text(), 256);
+        // app_core.magic_crypt = &new_magic_crypt;
+        // for item in all_items.iter_mut() {
+        //     let contents = item
+        //         .clone()
+        //         .decrypt_contents(&app_core.magic_crypt)
+        //         .expect("failed to decrypt item contents using current key");
+        //     item.contents = Some(new_magic_crypt.encrypt_str_to_base64(contents));
+        //     item_actions::update(&item).expect("failed to update item contents with new key");
+        // }
+    });
+
+    let cancel_button: gtk::Button = app_core.builder.get_object("change_master_key_dialog_cancel_button").unwrap();
+    cancel_button.connect_clicked(glib::clone!(@weak dialog => move |_| {
+        dialog.hide();
+    }));
+
     Ok(())
 }
 
 fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
     let dialog: gtk::Dialog = builder.get_object("generate_password_dialog").unwrap();
     dialog.hide_on_delete();
-    dialog.connect_delete_event(|dialog, event| {
+    dialog.connect_delete_event(|dialog, _| {
         dialog.hide();
         Inhibit(true)
     });
