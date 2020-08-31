@@ -77,35 +77,10 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="halign">end</property>
-                <property name="label" translatable="yes">New Key:</property>
-              </object>
-              <packing>
-                <property name="left_attach">0</property>
-                <property name="top_attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="halign">end</property>
-                <property name="label" translatable="yes">New Key Confirmation:</property>
-              </object>
-              <packing>
-                <property name="left_attach">0</property>
-                <property name="top_attach">2</property>
-              </packing>
-            </child>
-            <child>
               <object class="GtkEntry" id="change_master_key_dialog_current_key_entry">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="max_length">40</property>
-                <property name="visibility">False</property>
                 <property name="invisible_char">•</property>
                 <property name="width_chars">30</property>
                 <property name="max_width_chars">40</property>
@@ -115,6 +90,69 @@
               <packing>
                 <property name="left_attach">1</property>
                 <property name="top_attach">0</property>
+                <property name="width">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="halign">end</property>
+                <property name="label" translatable="yes">Quality:</property>
+              </object>
+              <packing>
+                <property name="left_attach">0</property>
+                <property name="top_attach">1</property>
+                <property name="width">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="change_master_key_dialog_current_key_quality_score_label">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">0/100</property>
+                <property name="xalign">0</property>
+              </object>
+              <packing>
+                <property name="left_attach">2</property>
+                <property name="top_attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="halign">end</property>
+                <property name="label" translatable="yes">New Key:</property>
+              </object>
+              <packing>
+                <property name="left_attach">0</property>
+                <property name="top_attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="halign">end</property>
+                <property name="label" translatable="yes">Quality:</property>
+              </object>
+              <packing>
+                <property name="left_attach">0</property>
+                <property name="top_attach">3</property>
+                <property name="width">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="change_master_key_dialog_new_key_quality_score_label">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">0/100</property>
+                <property name="xalign">0</property>
+              </object>
+              <packing>
+                <property name="left_attach">2</property>
+                <property name="top_attach">3</property>
               </packing>
             </child>
             <child>
@@ -122,25 +160,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="max_length">40</property>
-                <property name="visibility">False</property>
-                <property name="invisible_char">*</property>
-                <property name="width_chars">30</property>
-                <property name="max_width_chars">40</property>
-                <property name="primary_icon_stock">gtk-dialog-authentication</property>
-                <property name="input_purpose">password</property>
-              </object>
-              <packing>
-                <property name="left_attach">1</property>
-                <property name="top_attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="change_master_key_dialog_new_key_confirmation_entry">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="max_length">40</property>
-                <property name="visibility">False</property>
-                <property name="invisible_char">*</property>
+                <property name="invisible_char">•</property>
                 <property name="width_chars">30</property>
                 <property name="max_width_chars">40</property>
                 <property name="primary_icon_stock">gtk-dialog-authentication</property>
@@ -149,14 +169,18 @@
               <packing>
                 <property name="left_attach">1</property>
                 <property name="top_attach">2</property>
+                <property name="width">2</property>
               </packing>
             </child>
           </object>
           <packing>
             <property name="expand">True</property>
             <property name="fill">True</property>
-            <property name="position">1</property>
+            <property name="position">0</property>
           </packing>
+        </child>
+        <child>
+          <placeholder/>
         </child>
       </object>
     </child>
@@ -788,7 +812,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="halign">start</property>
-                <property name="label" translatable="yes">0.0/100</property>
+                <property name="label" translatable="yes">0/100</property>
                 <property name="single_line_mode">True</property>
                 <property name="xalign">0</property>
               </object>
