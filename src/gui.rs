@@ -132,7 +132,7 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
     }));
 
     let ok_button: gtk::Button = builder.get_object("change_master_key_dialog_ok_button").unwrap();
-    ok_button.connect_clicked(move |_| {
+    ok_button.connect_clicked(glib::clone!(@weak dialog => move |_| {
         let mut all_items = item_actions::find_all(None).expect("failed to get items from db");
         let new_magic_crypt = new_magic_crypt!(new_key_entry.get_buffer().get_text(), 256);
 
@@ -148,11 +148,12 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
         }
 
         *current_magic_crypt = Some(new_magic_crypt.clone());
-    });
+        dialog.close();
+    }));
 
     let cancel_button: gtk::Button = builder.get_object("change_master_key_dialog_cancel_button").unwrap();
     cancel_button.connect_clicked(glib::clone!(@weak dialog => move |_| {
-        dialog.hide();
+        dialog.close();
     }));
 
     Ok(())
