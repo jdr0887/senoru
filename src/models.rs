@@ -39,8 +39,8 @@ impl NewItem {
 }
 
 impl Item {
-    pub fn decrypt_contents(self, mc: &MagicCrypt256) -> Result<String, Box<dyn Error>> {
-        let contents = mc.decrypt_base64_to_string(&self.contents.unwrap())?;
+    pub fn decrypt_contents(&self, mc: &MagicCrypt256) -> Result<String, Box<dyn Error>> {
+        let contents = mc.decrypt_base64_to_string(self.contents.as_ref().unwrap())?;
         Ok(contents)
     }
 }
