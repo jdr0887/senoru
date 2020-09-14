@@ -24,7 +24,7 @@ use std::env;
 use std::error::Error;
 use std::path;
 use std::str::FromStr;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
 mod db;
@@ -34,11 +34,13 @@ mod models;
 mod schema;
 
 pub struct AppCore {
-    pub magic_crypt: Mutex<Option<magic_crypt::MagicCrypt256>>,
+    pub magic_crypt: Arc<Mutex<Option<magic_crypt::MagicCrypt256>>>,
 }
 
 lazy_static! {
-    static ref APP_CORE: AppCore = AppCore { magic_crypt: Mutex::new(None) };
+    static ref APP_CORE: AppCore = AppCore {
+        magic_crypt: Arc::new(Mutex::new(None))
+    };
 }
 
 #[derive(StructOpt, Debug)]
