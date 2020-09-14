@@ -108,6 +108,7 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
     let current_key_quality_score_label: gtk::Label = builder.get_object("change_master_key_dialog_current_key_quality_score_label").unwrap();
     let new_key_entry: gtk::Entry = builder.get_object("change_master_key_dialog_new_key_entry").unwrap();
     let new_key_quality_score_label: gtk::Label = builder.get_object("change_master_key_dialog_new_key_quality_score_label").unwrap();
+    let ok_button: gtk::Button = builder.get_object("change_master_key_dialog_ok_button").unwrap();
 
     current_key_entry.connect_key_release_event(
         glib::clone!(@weak current_key_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
@@ -131,7 +132,6 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
         dialog.show_all();
     }));
 
-    let ok_button: gtk::Button = builder.get_object("change_master_key_dialog_ok_button").unwrap();
     ok_button.connect_clicked(glib::clone!(@weak dialog => move |_| {
         let mut all_items = item_actions::find_all(None).expect("failed to get items from db");
         let new_magic_crypt = new_magic_crypt!(new_key_entry.get_buffer().get_text(), 256);
@@ -148,7 +148,7 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
         }
 
         *current_magic_crypt = Some(new_magic_crypt.clone());
-        dialog.close();
+        dialog.hide();
     }));
 
     let cancel_button: gtk::Button = builder.get_object("change_master_key_dialog_cancel_button").unwrap();
@@ -221,9 +221,8 @@ fn connect_menu_items(
     item_title_tree_view: &gtk::TreeView,
 ) -> Result<(), Box<dyn Error>> {
     let new_menu_item: gtk::MenuItem = builder.get_object("new_menu_item").unwrap();
-    new_menu_item.connect_activate(glib::clone!(@strong store, @weak item_title_tree_view  => move |a| {
-        debug!("a: {}", a);
-        new_menu_item_action(&store, &item_title_tree_view);
+    new_menu_item.connect_activate(glib::clone!(@strong store, @strong item_title_tree_view => move |_| {
+        new_menu_item_action(&store, &item_title_tree_view)
     }));
 
     let import_menu_item: gtk::MenuItem = builder.get_object("import_menu_item").unwrap();
@@ -273,10 +272,10 @@ fn generate_password_dialog_refresh_action(
 fn new_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView) {
     let mut new_item = models::NewItem::new("New".into());
     let contents: String = "Enter text here".into();
-    let mc = crate::APP_CORE.magic_crypt.lock().unwrap();
-    let mc = mc.as_ref().expect("failed to get magic_crypt");
+    let mc = crate::APP_CORE.magic_crypt.lock().unwrap().clone();
+    let mc_ref = mc.as_ref().expect("failed to get magic_crypt");
 
-    new_item.contents = Some(mc.encrypt_str_to_base64(contents));
+    new_item.contents = Some(mc_ref.encrypt_str_to_base64(contents));
     match item_actions::insert(&new_item) {
         Ok(_) => {
             let value = glib::value::Value::from(&new_item.title);
@@ -301,8 +300,8 @@ fn import_menu_item_action(main_window: &gtk::Window, store: &gtk::ListStore, tr
     file_chooser_dialog.add_button("Open", gtk::ResponseType::Ok);
     file_chooser_dialog.add_button("Cancel", gtk::ResponseType::Cancel);
 
-    let mc = crate::APP_CORE.magic_crypt.lock().unwrap();
-    let mc = mc.as_ref().expect("failed to get magic_crypt");
+    let mc = crate::APP_CORE.magic_crypt.lock().unwrap().clone();
+    let mc_ref = mc.as_ref().expect("failed to get magic_crypt");
 
     if file_chooser_dialog.run() == gtk::ResponseType::Ok {
         let files = file_chooser_dialog.get_filenames();
@@ -311,7 +310,7 @@ fn import_menu_item_action(main_window: &gtk::Window, store: &gtk::ListStore, tr
             let item_title: String = path.file_name().unwrap().to_os_string().into_string().unwrap();
             let mut new_item = models::NewItem::new(item_title);
             let contents = std::fs::read_to_string(path.as_path()).unwrap();
-            new_item.contents = Some(mc.encrypt_str_to_base64(contents));
+            new_item.contents = Some(mc_ref.encrypt_str_to_base64(contents));
             match item_actions::insert(&new_item) {
                 Ok(_) => {
                     let value = glib::value::Value::from(&new_item.title);
@@ -338,14 +337,14 @@ fn export_menu_item_action() {
         std::fs::create_dir_all(&export_dir).ok();
     }
 
-    let mc = crate::APP_CORE.magic_crypt.lock().unwrap();
-    let mc = mc.as_ref().expect("failed to get magic_crypt");
+    let mc = crate::APP_CORE.magic_crypt.lock().unwrap().clone();
+    let mc_ref = mc.as_ref().expect("failed to get magic_crypt");
 
     let items = item_actions::find_all(None).expect("failed to get Items");
     for item in items.iter().cloned() {
         let output_file = export_dir.join(&item.title);
         let mut bw = io::BufWriter::new(fs::File::create(output_file.as_path()).unwrap());
-        let contents = item.decrypt_contents(&mc).expect("failed to decrypt item");
+        let contents = item.decrypt_contents(&mc_ref).expect("failed to decrypt item");
         bw.write_all(contents.as_bytes()).expect("Unable to write data");
     }
 
@@ -388,8 +387,8 @@ fn remove_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView, te
 }
 
 fn tree_view_selection_changed(tree_selection: &gtk::TreeSelection, text_view: &gtk::TextView) {
-    let mc = crate::APP_CORE.magic_crypt.lock().unwrap();
-    let mc = mc.as_ref().expect("failed to get magic_crypt");
+    let mc = crate::APP_CORE.magic_crypt.lock().unwrap().clone();
+    let mc_ref = mc.as_ref().expect("failed to get magic_crypt");
     match tree_selection.get_selected() {
         Some((model, iter)) => {
             let selected_title = model.get_value(&iter, 0).get::<String>().expect("failed to get selected title");
@@ -399,7 +398,7 @@ fn tree_view_selection_changed(tree_selection: &gtk::TreeSelection, text_view: &
                     let item = item_actions::find_by_title(&title).expect("failed to find Item by title");
                     match item {
                         Some(i) => {
-                            text_view_buffer.set_text(&i.decrypt_contents(&mc).unwrap());
+                            text_view_buffer.set_text(&i.decrypt_contents(&mc_ref).unwrap());
                         }
                         None => text_view_buffer.set_text(&""),
                     }
@@ -434,8 +433,8 @@ fn tree_view_cell_renderer_edited(new_title: &str, tree_view: &gtk::TreeView, st
 }
 
 fn text_view_key_press_event_action(tree_view: &gtk::TreeView, text_view: &gtk::TextView) {
-    let mc = crate::APP_CORE.magic_crypt.lock().unwrap();
-    let mc = mc.as_ref().expect("failed to get magic_crypt");
+    let mc = crate::APP_CORE.magic_crypt.lock().unwrap().clone();
+    let mc_ref = mc.as_ref().expect("failed to get magic_crypt");
     let selection = tree_view.get_selection();
     let (model, iter) = selection.get_selected().expect("Couldn't get selected");
     let selected_title = model.get_value(&iter, 0).get::<String>().expect("failed to get selected title");
@@ -449,7 +448,7 @@ fn text_view_key_press_event_action(tree_view: &gtk::TreeView, text_view: &gtk::
                         .get_text(&buffer.get_start_iter(), &buffer.get_end_iter(), false)
                         .expect("failed to get content")
                         .to_string();
-                    i.contents = Some(mc.encrypt_str_to_base64(contents));
+                    i.contents = Some(mc_ref.encrypt_str_to_base64(contents));
                     item_actions::update(&i).expect("failed to update item");
                 }
                 None => {}
