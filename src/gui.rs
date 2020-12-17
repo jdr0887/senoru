@@ -109,51 +109,62 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
     let new_key_entry: gtk::Entry = builder.get_object("change_master_key_dialog_new_key_entry").unwrap();
     let new_key_quality_score_label: gtk::Label = builder.get_object("change_master_key_dialog_new_key_quality_score_label").unwrap();
     let ok_button: gtk::Button = builder.get_object("change_master_key_dialog_ok_button").unwrap();
+    let error_dialog: gtk::MessageDialog = builder.get_object("error_dialog").unwrap();
 
-    current_key_entry.connect_key_release_event(
-        glib::clone!(@weak current_key_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
-            let key = entry.get_buffer().get_text();
-            let score = scorer::score(&analyzer::analyze(&key));
-            current_key_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
-            Inhibit(false)
-        }),
-    );
+    current_key_entry.connect_key_release_event(glib::clone!(@weak current_key_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
+        let key = entry.get_buffer().get_text();
+        let score = scorer::score(&analyzer::analyze(&key));
+        current_key_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
+        Inhibit(false)
+    }));
 
-    new_key_entry.connect_key_release_event(
-        glib::clone!(@weak new_key_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
-            let key = entry.get_buffer().get_text();
-            let score = scorer::score(&analyzer::analyze(&key));
-            new_key_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
-            Inhibit(false)
-        }),
-    );
+    new_key_entry.connect_key_release_event(glib::clone!(@weak new_key_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
+        let key = entry.get_buffer().get_text();
+        let score = scorer::score(&analyzer::analyze(&key));
+        new_key_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
+        Inhibit(false)
+    }));
 
     menu_item.connect_activate(glib::clone!(@weak dialog => move |_| {
         dialog.show_all();
     }));
 
-    ok_button.connect_clicked(glib::clone!(@weak dialog => move |_| {
-        let mut all_items = item_actions::find_all(None).expect("failed to get items from db");
-        let new_magic_crypt = new_magic_crypt!(new_key_entry.get_buffer().get_text(), 256);
-
-        let mut current_magic_crypt = crate::APP_CORE.magic_crypt.lock().unwrap();
-        let old_magic_crypt = current_magic_crypt.as_ref().expect("failed to get magic_crypt");
-
-        for item in all_items.iter_mut() {
-            let contents = item
-                .decrypt_contents(&old_magic_crypt)
-                .expect("failed to decrypt item contents using current key");
-            item.contents = Some(new_magic_crypt.encrypt_str_to_base64(contents));
-            item_actions::update(&item).expect("failed to update item contents with new key");
+    ok_button.connect_clicked(glib::clone!(@weak dialog, @weak new_key_entry, @strong error_dialog => move |_| {
+        let new_master_key_text = new_key_entry.get_buffer().get_text();
+        let new_master_key_score = scorer::score(&analyzer::analyze(&new_master_key_text));
+        if new_master_key_score < 40_f64 {
+            error_dialog.set_property_text("Your key scored < 40...you can do better".into());
+            error_dialog.run();
+            error_dialog.close();
+        } else {
+            let mut all_items = item_actions::find_all(None).expect("failed to get items from db");
+            let new_magic_crypt = new_magic_crypt!(new_key_entry.get_buffer().get_text(), 256);
+            let mut current_magic_crypt = crate::APP_CORE.magic_crypt.lock().unwrap();
+            let old_magic_crypt = current_magic_crypt.as_ref().expect("failed to get magic_crypt");
+            for item in all_items.iter_mut() {
+                let contents = item
+                    .decrypt_contents(&old_magic_crypt)
+                    .expect("failed to decrypt item contents using current key");
+                item.contents = Some(new_magic_crypt.encrypt_str_to_base64(contents));
+                item_actions::update(&item).expect("failed to update item contents with new key");
+            }
+            *current_magic_crypt = Some(new_magic_crypt.clone());
+            dialog.hide();
         }
+    }));
 
-        *current_magic_crypt = Some(new_magic_crypt.clone());
-        dialog.hide();
+    let tmp_dialog = dialog.clone();
+    dialog.connect_close(glib::clone!(@weak current_key_entry, @weak new_key_entry => move |_| {
+        current_key_entry.set_text("");
+        new_key_entry.set_text("");
+        tmp_dialog.hide();
     }));
 
     let cancel_button: gtk::Button = builder.get_object("change_master_key_dialog_cancel_button").unwrap();
-    cancel_button.connect_clicked(glib::clone!(@weak dialog => move |_| {
-        dialog.close();
+    cancel_button.connect_clicked(glib::clone!(@weak dialog, @weak current_key_entry, @weak new_key_entry => move |_| {
+        current_key_entry.set_text("");
+        new_key_entry.set_text("");
+        dialog.hide();
     }));
 
     Ok(())
@@ -214,12 +225,7 @@ fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
     Ok(())
 }
 
-fn connect_menu_items(
-    builder: &gtk::Builder,
-    main_window: &gtk::Window,
-    store: &gtk::ListStore,
-    item_title_tree_view: &gtk::TreeView,
-) -> Result<(), Box<dyn Error>> {
+fn connect_menu_items(builder: &gtk::Builder, main_window: &gtk::Window, store: &gtk::ListStore, item_title_tree_view: &gtk::TreeView) -> Result<(), Box<dyn Error>> {
     let new_menu_item: gtk::MenuItem = builder.get_object("new_menu_item").unwrap();
     new_menu_item.connect_activate(glib::clone!(@strong store, @strong item_title_tree_view => move |_| {
         new_menu_item_action(&store, &item_title_tree_view)
