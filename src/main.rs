@@ -91,14 +91,12 @@ fn start_ui(app: &gtk::Application) {
 
     db::init_db().expect("failed to initialize the db");
 
-    key_dialog_entry.connect_key_release_event(
-        glib::clone!(@weak key_dialog_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
-            let key = entry.get_buffer().get_text();
-            let score = scorer::score(&analyzer::analyze(&key));
-            key_dialog_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
-            Inhibit(false)
-        }),
-    );
+    key_dialog_entry.connect_key_release_event(glib::clone!(@weak key_dialog_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
+        let key = entry.get_buffer().get_text();
+        let score = scorer::score(&analyzer::analyze(&key));
+        key_dialog_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
+        Inhibit(false)
+    }));
 
     key_dialog_entry.connect_activate(glib::clone!(@weak app, @weak builder, @weak key_dialog, @weak key_dialog_entry => move |_| {
         key_dialog_ok_button_clicked(&app, &builder, &key_dialog, &key_dialog_entry);
