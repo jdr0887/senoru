@@ -10,7 +10,7 @@ SENORU is a Simple Secure Notepad in Rust.  It uses the following libraries:
 ## Getting Started
 
 ```
-$ sudo apt-get -y install sqlite3 libsqlite3-dev 
+$ sudo apt-get -y install sqlite3 libsqlite3-dev libgtk-3-dev
 $ cargo run
 ```
 
