@@ -46,17 +46,14 @@ lazy_static! {
 #[derive(StructOpt, Debug)]
 #[structopt(name = "senoru", about = "senoru")]
 struct Options {
-    #[structopt(short = "l", long = "log_level", long_help = "log level", default_value = "info")]
-    log_level: String,
-
     #[structopt(short = "f", long = "database_file", long_help = "database file", parse(from_os_str))]
     database: Option<path::PathBuf>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
+
     let options = Options::from_args();
-    let log_level = Level::from_str(options.log_level.as_str()).expect("Invalid log level");
-    simple_logger::init_with_level(log_level).unwrap();
     debug!("{:?}", options);
 
     let db_path = match options.database {
