@@ -3,7 +3,7 @@ use chrono::prelude::*;
 use diesel::*;
 use magic_crypt::MagicCrypt256;
 use magic_crypt::MagicCryptTrait;
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use std::error::Error;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Insertable, AsChangeset, Associations)]

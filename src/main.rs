@@ -17,13 +17,11 @@ extern crate base64;
 use gio::prelude::*;
 use gtk::prelude::*;
 use gtk::DialogExt;
-use log::Level;
 use passwords::analyzer;
 use passwords::scorer;
 use std::env;
 use std::error::Error;
 use std::path;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
