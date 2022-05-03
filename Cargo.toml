@@ -13,8 +13,8 @@ diesel_migrations = "^1.4"
 dirs = "^3.0"
 env_logger = "^0.9"
 gdk = "^0.13"
-gtk = { version = "^0.9", features = ["v3_24"] }
-gio = { version = "^0.9", features = ["v2_44"] }
+gtk = { version = "^0.9", features = ["v3_24_9"] }
+gio = { version = "^0.9", features = ["v2_64"] }
 glib = "^0.10"
 lazy_static = "^1.4"
 log = { version = "^0.4", features = ["std"] }
