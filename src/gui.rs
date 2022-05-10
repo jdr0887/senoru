@@ -1,18 +1,19 @@
-use crate::item_actions;
-use crate::models;
-use gtk::prelude::*;
-use gtk::TreeViewExt;
-use magic_crypt::MagicCryptTrait;
-use passwords::analyzer;
-use passwords::scorer;
 use std::error::Error;
 use std::fs;
 use std::io;
 use std::io::prelude::*;
 
+use gtk::prelude::*;
+use magic_crypt::MagicCryptTrait;
+use passwords::analyzer;
+use passwords::scorer;
+
+use crate::item_actions;
+use crate::models;
+
 pub fn launch(application: &gtk::Application, builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
-    let main_window: gtk::Window = builder.get_object("main_window").unwrap();
-    let main_window_item_title_tree_view: gtk::TreeView = builder.get_object("main_window_item_title_tree_view").unwrap();
+    let main_window: gtk::Window = builder.object("main_window").unwrap();
+    let main_window_item_title_tree_view: gtk::TreeView = builder.object("main_window_item_title_tree_view").unwrap();
 
     let item_store = create_item_store()?;
 
@@ -34,7 +35,7 @@ pub fn launch(application: &gtk::Application, builder: &gtk::Builder) -> Result<
 }
 
 fn create_item_store() -> Result<gtk::ListStore, Box<dyn Error>> {
-    let store = gtk::ListStore::new(&[glib::Type::String]);
+    let store = gtk::ListStore::new(&[glib::Type::STRING]);
     let items = item_actions::find_all(None).expect("failed to get Items");
     for item in items.iter() {
         debug!("item: {:?}", item);
@@ -45,8 +46,8 @@ fn create_item_store() -> Result<gtk::ListStore, Box<dyn Error>> {
 }
 
 fn connect_items(builder: &gtk::Builder, store: &gtk::ListStore, item_title_tree_view: &gtk::TreeView) -> Result<(), Box<dyn Error>> {
-    let item_content_text_view: gtk::TextView = builder.get_object("main_window_item_content_text_view").unwrap();
-    let item_title_search_entry: gtk::SearchEntry = builder.get_object("main_window_item_title_search_entry").unwrap();
+    let item_content_text_view: gtk::TextView = builder.object("main_window_item_content_text_view").unwrap();
+    let item_title_search_entry: gtk::SearchEntry = builder.object("main_window_item_title_search_entry").unwrap();
 
     item_title_tree_view.set_model(Some(store));
     item_title_tree_view.set_search_entry(Some(&item_title_search_entry));
@@ -68,15 +69,15 @@ fn connect_items(builder: &gtk::Builder, store: &gtk::ListStore, item_title_tree
     );
     let popup_menu: gtk::Menu = gtk::MenuBuilder::new().child(&remove_menu_item).build();
     item_title_tree_view.connect_button_press_event(move |_tree_view, event| {
-        if event.get_event_type() == gdk::EventType::ButtonPress && event.get_button() == 3 {
+        if event.event_type() == gdk::EventType::ButtonPress && event.button() == 3 {
             debug!("event: {:?}", event);
-            popup_menu.popup_easy(event.get_button(), event.get_time());
+            popup_menu.popup_easy(event.button(), event.time());
             popup_menu.show_all();
         }
         gtk::Inhibit(false)
     });
 
-    let tree_view_selection = item_title_tree_view.get_selection();
+    let tree_view_selection = item_title_tree_view.selection();
     tree_view_selection.connect_changed(glib::clone!(@weak item_content_text_view => move |tree_selection| {
         tree_view_selection_changed(tree_selection, &item_content_text_view);
     }));
@@ -89,8 +90,8 @@ fn connect_items(builder: &gtk::Builder, store: &gtk::ListStore, item_title_tree
 }
 
 fn connect_about_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
-    let dialog: gtk::AboutDialog = builder.get_object("about_dialog").unwrap();
-    let menu_item: gtk::MenuItem = builder.get_object("about_menu_item").unwrap();
+    let dialog: gtk::AboutDialog = builder.object("about_dialog").unwrap();
+    let menu_item: gtk::MenuItem = builder.object("about_menu_item").unwrap();
 
     menu_item.connect_activate(glib::clone!(@weak dialog => move |_| {
         dialog.show();
@@ -102,24 +103,24 @@ fn connect_about_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
 }
 
 fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
-    let dialog: gtk::Dialog = builder.get_object("change_master_key_dialog").unwrap();
-    let menu_item: gtk::MenuItem = builder.get_object("change_master_key_menu_item").unwrap();
-    let current_key_entry: gtk::Entry = builder.get_object("change_master_key_dialog_current_key_entry").unwrap();
-    let current_key_quality_score_label: gtk::Label = builder.get_object("change_master_key_dialog_current_key_quality_score_label").unwrap();
-    let new_key_entry: gtk::Entry = builder.get_object("change_master_key_dialog_new_key_entry").unwrap();
-    let new_key_quality_score_label: gtk::Label = builder.get_object("change_master_key_dialog_new_key_quality_score_label").unwrap();
-    let ok_button: gtk::Button = builder.get_object("change_master_key_dialog_ok_button").unwrap();
-    let error_dialog: gtk::MessageDialog = builder.get_object("error_dialog").unwrap();
+    let dialog: gtk::Dialog = builder.object("change_master_key_dialog").unwrap();
+    let menu_item: gtk::MenuItem = builder.object("change_master_key_menu_item").unwrap();
+    let current_key_entry: gtk::Entry = builder.object("change_master_key_dialog_current_key_entry").unwrap();
+    let current_key_quality_score_label: gtk::Label = builder.object("change_master_key_dialog_current_key_quality_score_label").unwrap();
+    let new_key_entry: gtk::Entry = builder.object("change_master_key_dialog_new_key_entry").unwrap();
+    let new_key_quality_score_label: gtk::Label = builder.object("change_master_key_dialog_new_key_quality_score_label").unwrap();
+    let ok_button: gtk::Button = builder.object("change_master_key_dialog_ok_button").unwrap();
+    let error_dialog: gtk::MessageDialog = builder.object("error_dialog").unwrap();
 
     current_key_entry.connect_key_release_event(glib::clone!(@weak current_key_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
-        let key = entry.get_buffer().get_text();
+        let key = entry.buffer().text();
         let score = scorer::score(&analyzer::analyze(&key));
         current_key_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
         Inhibit(false)
     }));
 
     new_key_entry.connect_key_release_event(glib::clone!(@weak new_key_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
-        let key = entry.get_buffer().get_text();
+        let key = entry.buffer().text();
         let score = scorer::score(&analyzer::analyze(&key));
         new_key_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
         Inhibit(false)
@@ -130,15 +131,15 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
     }));
 
     ok_button.connect_clicked(glib::clone!(@weak dialog, @weak new_key_entry, @strong error_dialog => move |_| {
-        let new_master_key_text = new_key_entry.get_buffer().get_text();
+        let new_master_key_text = new_key_entry.buffer().text();
         let new_master_key_score = scorer::score(&analyzer::analyze(&new_master_key_text));
         if new_master_key_score < 40_f64 {
-            error_dialog.set_property_text("Your key scored < 40...you can do better".into());
+            error_dialog.set_text("Your key scored < 40...you can do better".into());
             error_dialog.run();
             error_dialog.close();
         } else {
             let mut all_items = item_actions::find_all(None).expect("failed to get items from db");
-            let new_magic_crypt = new_magic_crypt!(new_key_entry.get_buffer().get_text(), 256);
+            let new_magic_crypt = new_magic_crypt!(new_key_entry.buffer().text(), 256);
             let mut current_magic_crypt = crate::APP_CORE.magic_crypt.lock().unwrap();
             let old_magic_crypt = current_magic_crypt.as_ref().expect("failed to get magic_crypt");
             for item in all_items.iter_mut() {
@@ -160,7 +161,7 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
         tmp_dialog.hide();
     }));
 
-    let cancel_button: gtk::Button = builder.get_object("change_master_key_dialog_cancel_button").unwrap();
+    let cancel_button: gtk::Button = builder.object("change_master_key_dialog_cancel_button").unwrap();
     cancel_button.connect_clicked(glib::clone!(@weak dialog, @weak current_key_entry, @weak new_key_entry => move |_| {
         current_key_entry.set_text("");
         new_key_entry.set_text("");
@@ -171,20 +172,20 @@ fn connect_change_master_key_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
 }
 
 fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dyn Error>> {
-    let dialog: gtk::Dialog = builder.get_object("generate_password_dialog").unwrap();
+    let dialog: gtk::Dialog = builder.object("generate_password_dialog").unwrap();
     dialog.hide_on_delete();
     dialog.connect_delete_event(|dialog, _| {
         dialog.hide();
         Inhibit(true)
     });
-    let tree_view: gtk::TreeView = builder.get_object("generate_password_dialog_password_tree_view").unwrap();
-    let include_numbers_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_numbers_checkbox").unwrap();
-    let include_uppercase_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_uppercase_checkbox").unwrap();
-    let include_symbols_checkbox: gtk::CheckButton = builder.get_object("generate_password_dialog_include_symbols_checkbox").unwrap();
-    let length_combobox: gtk::ComboBox = builder.get_object("generate_password_dialog_length_combobox").unwrap();
-    let count_combobox: gtk::ComboBox = builder.get_object("generate_password_dialog_count_combobox").unwrap();
+    let tree_view: gtk::TreeView = builder.object("generate_password_dialog_password_tree_view").unwrap();
+    let include_numbers_checkbox: gtk::CheckButton = builder.object("generate_password_dialog_include_numbers_checkbox").unwrap();
+    let include_uppercase_checkbox: gtk::CheckButton = builder.object("generate_password_dialog_include_uppercase_checkbox").unwrap();
+    let include_symbols_checkbox: gtk::CheckButton = builder.object("generate_password_dialog_include_symbols_checkbox").unwrap();
+    let length_combobox: gtk::ComboBox = builder.object("generate_password_dialog_length_combobox").unwrap();
+    let count_combobox: gtk::ComboBox = builder.object("generate_password_dialog_count_combobox").unwrap();
 
-    let store = gtk::ListStore::new(&[glib::Type::String, glib::Type::String]);
+    let store = gtk::ListStore::new(&[glib::Type::STRING, glib::Type::STRING]);
 
     tree_view.set_model(Some(&store));
 
@@ -207,17 +208,17 @@ fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
     password_quality_column.add_attribute(&password_quality_renderer, "text", 1i32);
     tree_view.append_column(&password_quality_column);
 
-    let menu_item: gtk::MenuItem = builder.get_object("generate_password_menu_item").unwrap();
+    let menu_item: gtk::MenuItem = builder.object("generate_password_menu_item").unwrap();
     menu_item.connect_activate(glib::clone!(@weak dialog => move |_| {
         dialog.show();
     }));
 
-    let refresh_button: gtk::Button = builder.get_object("generate_password_dialog_refresh_button").unwrap();
+    let refresh_button: gtk::Button = builder.object("generate_password_dialog_refresh_button").unwrap();
     refresh_button.connect_clicked(glib::clone!(@weak include_numbers_checkbox, @weak include_uppercase_checkbox, @weak include_symbols_checkbox, @weak length_combobox, @weak count_combobox, @weak store => move |_| {
         generate_password_dialog_refresh_action(&include_numbers_checkbox, &include_uppercase_checkbox, &include_symbols_checkbox, &length_combobox, &count_combobox, &store);
     }));
 
-    let cancel_button: gtk::Button = builder.get_object("generate_password_dialog_cancel_button").unwrap();
+    let cancel_button: gtk::Button = builder.object("generate_password_dialog_cancel_button").unwrap();
     cancel_button.connect_clicked(glib::clone!(@weak dialog => move |_| {
         dialog.hide();
     }));
@@ -226,22 +227,22 @@ fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
 }
 
 fn connect_menu_items(builder: &gtk::Builder, main_window: &gtk::Window, store: &gtk::ListStore, item_title_tree_view: &gtk::TreeView) -> Result<(), Box<dyn Error>> {
-    let new_menu_item: gtk::MenuItem = builder.get_object("new_menu_item").unwrap();
+    let new_menu_item: gtk::MenuItem = builder.object("new_menu_item").unwrap();
     new_menu_item.connect_activate(glib::clone!(@strong store, @strong item_title_tree_view => move |_| {
         new_menu_item_action(&store, &item_title_tree_view)
     }));
 
-    let import_menu_item: gtk::MenuItem = builder.get_object("import_menu_item").unwrap();
+    let import_menu_item: gtk::MenuItem = builder.object("import_menu_item").unwrap();
     import_menu_item.connect_activate(glib::clone!(@weak main_window, @weak store, @weak item_title_tree_view => move |_| {
         import_menu_item_action(&main_window, &store, &item_title_tree_view);
     }));
 
-    let export_menu_item: gtk::MenuItem = builder.get_object("export_menu_item").unwrap();
+    let export_menu_item: gtk::MenuItem = builder.object("export_menu_item").unwrap();
     export_menu_item.connect_activate(glib::clone!(@weak main_window => move |_| {
         export_menu_item_action();
     }));
 
-    let quit_menu_item: gtk::MenuItem = builder.get_object("quit_menu_item").unwrap();
+    let quit_menu_item: gtk::MenuItem = builder.object("quit_menu_item").unwrap();
     quit_menu_item.connect_activate(glib::clone!(@weak main_window => move |_| {
         main_window.close();
     }));
@@ -261,17 +262,17 @@ fn generate_password_dialog_refresh_action(
         .exclude_similar_characters(true)
         .strict(true)
         .lowercase_letters(true)
-        .numbers(include_numbers_checkbox.get_active())
-        .symbols(include_symbols_checkbox.get_active())
-        .uppercase_letters(include_uppercase_checkbox.get_active())
-        .length(length_combobox.get_active_id().unwrap().parse::<usize>().unwrap());
+        .numbers(include_numbers_checkbox.is_active())
+        .symbols(include_symbols_checkbox.is_active())
+        .uppercase_letters(include_uppercase_checkbox.is_active())
+        .length(length_combobox.active_id().unwrap().parse::<usize>().unwrap());
     let passwords = generator
-        .generate(count_combobox.get_active_id().unwrap().parse::<usize>().unwrap())
+        .generate(count_combobox.active_id().unwrap().parse::<usize>().unwrap())
         .expect("Couldn't generate passwords");
     store.clear();
     for password in passwords {
         let score = scorer::score(&analyzer::analyze(&password));
-        store.insert_with_values(None, &[0, 1], &[&password, &format!("{}/100", score as i32).as_str()]);
+        store.insert_with_values(None, &[(0, &password), (1, &format!("{}/100", score as i32).as_str())]);
     }
 }
 
@@ -287,8 +288,8 @@ fn new_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView) {
             let value = glib::value::Value::from(&new_item.title);
             let iter = store.append();
             store.set_value(&iter, 0u32, &value);
-            let path = store.get_path(&iter).expect("Couldn't get path");
-            tree_view.get_selection().select_path(&path);
+            let path = store.path(&iter).expect("Couldn't get path");
+            tree_view.selection().select_path(&path);
         }
         Err(e) => warn!("{}", e),
     }
@@ -310,7 +311,7 @@ fn import_menu_item_action(main_window: &gtk::Window, store: &gtk::ListStore, tr
     let mc_ref = mc.as_ref().expect("failed to get magic_crypt");
 
     if file_chooser_dialog.run() == gtk::ResponseType::Ok {
-        let files = file_chooser_dialog.get_filenames();
+        let files = file_chooser_dialog.filenames();
         files.iter().for_each(|z| info!("file: {}", z.to_string_lossy()));
         for path in files.iter() {
             let item_title: String = path.file_name().unwrap().to_os_string().into_string().unwrap();
@@ -322,8 +323,8 @@ fn import_menu_item_action(main_window: &gtk::Window, store: &gtk::ListStore, tr
                     let value = glib::value::Value::from(&new_item.title);
                     let iter = store.append();
                     store.set_value(&iter, 0u32, &value);
-                    let path = store.get_path(&iter).expect("Couldn't get path");
-                    tree_view.get_selection().select_path(&path);
+                    let path = store.path(&iter).expect("Couldn't get path");
+                    tree_view.selection().select_path(&path);
                 }
                 Err(e) => warn!("{}", e),
             }
@@ -366,26 +367,20 @@ fn export_menu_item_action() {
 }
 
 fn remove_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView, text_view: &gtk::TextView) {
-    let selection = tree_view.get_selection();
-    let (model, iter) = selection.get_selected().expect("Couldn't get selected");
-    let selected_title = model.get_value(&iter, 0).get::<String>().expect("failed to get selected title");
-
-    match selected_title {
-        Some(title) => {
-            let item = item_actions::find_by_title(&title).expect("failed to find Item by title");
-            match item {
-                Some(i) => {
-                    item_actions::delete(&i.id).expect("failed to delete item");
-                    store.remove(&iter);
-                    match store.get_iter_first() {
-                        Some(_) => {}
-                        None => {
-                            let text_view_buffer = text_view.get_buffer().expect("Couldn't get buffer");
-                            text_view_buffer.set_text(&"");
-                        }
-                    }
+    let selection = tree_view.selection();
+    let (model, iter) = selection.selected().expect("Couldn't get selected");
+    let selected_title = model.value(&iter, 0).get::<String>().expect("failed to get selected title");
+    let item = item_actions::find_by_title(&selected_title).expect("failed to find Item by title");
+    match item {
+        Some(i) => {
+            item_actions::delete(&i.id).expect("failed to delete item");
+            store.remove(&iter);
+            match store.iter_first() {
+                Some(_) => {}
+                None => {
+                    let text_view_buffer = text_view.buffer().expect("Couldn't get buffer");
+                    text_view_buffer.set_text(&"");
                 }
-                None => {}
             }
         }
         None => {}
@@ -395,44 +390,38 @@ fn remove_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView, te
 fn tree_view_selection_changed(tree_selection: &gtk::TreeSelection, text_view: &gtk::TextView) {
     let mc = crate::APP_CORE.magic_crypt.lock().unwrap().clone();
     let mc_ref = mc.as_ref().expect("failed to get magic_crypt");
-    match tree_selection.get_selected() {
+    match tree_selection.selected() {
         Some((model, iter)) => {
-            let selected_title = model.get_value(&iter, 0).get::<String>().expect("failed to get selected title");
-            let text_view_buffer = text_view.get_buffer().expect("Couldn't get buffer");
-            match selected_title {
-                Some(title) => {
-                    let item = item_actions::find_by_title(&title).expect("failed to find Item by title");
-                    match item {
-                        Some(i) => {
-                            text_view_buffer.set_text(&i.decrypt_contents(&mc_ref).unwrap());
-                        }
-                        None => text_view_buffer.set_text(&""),
-                    }
+            let selected_title = model.value(&iter, 0).get::<String>().expect("failed to get selected title");
+            let text_view_buffer = text_view.buffer().expect("Couldn't get buffer");
+            // match selected_title {
+            //     Some(title) => {
+            let item = item_actions::find_by_title(&selected_title).expect("failed to find Item by title");
+            match item {
+                Some(i) => {
+                    text_view_buffer.set_text(&i.decrypt_contents(&mc_ref).unwrap());
                 }
-                _ => text_view_buffer.set_text(&""),
+                None => text_view_buffer.set_text(&""),
             }
+            //     }
+            //     _ => text_view_buffer.set_text(&""),
+            // }
         }
         None => {}
     }
 }
 
 fn tree_view_cell_renderer_edited(new_title: &str, tree_view: &gtk::TreeView, store: &gtk::ListStore) {
-    let selection = tree_view.get_selection();
-    let (model, iter) = selection.get_selected().expect("Couldn't get selected");
-    let selected_title = model.get_value(&iter, 0).get::<String>().expect("failed to get selected title");
-
-    match selected_title {
-        Some(title) => {
-            let item = item_actions::find_by_title(&title).expect("failed to find Item by title");
-            match item {
-                Some(mut i) => {
-                    i.title = new_title.to_string();
-                    item_actions::update(&i).expect("failed to update item");
-                    let value = glib::value::Value::from(&i.title);
-                    store.set_value(&iter, 0u32, &value);
-                }
-                None => {}
-            }
+    let selection = tree_view.selection();
+    let (model, iter) = selection.selected().expect("Couldn't get selected");
+    let selected_title = model.value(&iter, 0).get::<String>().expect("failed to get selected title");
+    let item = item_actions::find_by_title(&selected_title).expect("failed to find Item by title");
+    match item {
+        Some(mut i) => {
+            i.title = new_title.to_string();
+            item_actions::update(&i).expect("failed to update item");
+            let value = glib::value::Value::from(&i.title);
+            store.set_value(&iter, 0u32, &value);
         }
         None => {}
     }
@@ -441,24 +430,18 @@ fn tree_view_cell_renderer_edited(new_title: &str, tree_view: &gtk::TreeView, st
 fn text_view_key_press_event_action(tree_view: &gtk::TreeView, text_view: &gtk::TextView) {
     let mc = crate::APP_CORE.magic_crypt.lock().unwrap().clone();
     let mc_ref = mc.as_ref().expect("failed to get magic_crypt");
-    let selection = tree_view.get_selection();
-    let (model, iter) = selection.get_selected().expect("Couldn't get selected");
-    let selected_title = model.get_value(&iter, 0).get::<String>().expect("failed to get selected title");
-    match selected_title {
-        Some(title) => {
-            let item = item_actions::find_by_title(&title).expect("failed to find Item by title");
-            match item {
-                Some(mut i) => {
-                    let buffer = text_view.get_buffer().expect("Couldn't get buffer");
-                    let contents = buffer
-                        .get_text(&buffer.get_start_iter(), &buffer.get_end_iter(), false)
-                        .expect("failed to get content")
-                        .to_string();
-                    i.contents = Some(mc_ref.encrypt_str_to_base64(contents));
-                    item_actions::update(&i).expect("failed to update item");
-                }
-                None => {}
-            }
+    let selection = tree_view.selection();
+    let (model, iter) = selection.selected().expect("Couldn't get selected");
+    let selected_title = model.value(&iter, 0).get::<String>().expect("failed to get selected title");
+    let item = item_actions::find_by_title(&selected_title).expect("failed to find Item by title");
+    match item {
+        Some(mut i) => {
+            let buffer = text_view.buffer().expect("Couldn't get buffer");
+            let contents = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false)
+                .expect("failed to get content")
+                .to_string();
+            i.contents = Some(mc_ref.encrypt_str_to_base64(contents));
+            item_actions::update(&i).expect("failed to update item");
         }
         None => {}
     }

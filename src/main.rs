@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate diesel;
 #[macro_use]
-extern crate log;
+extern crate diesel_migrations;
 extern crate gdk;
 extern crate gio;
 extern crate glib;
@@ -9,21 +9,21 @@ extern crate gtk;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
-extern crate diesel_migrations;
+extern crate log;
 #[macro_use]
 extern crate magic_crypt;
-extern crate base64;
 
-use gio::prelude::*;
-use gtk::prelude::*;
-use gtk::DialogExt;
-use passwords::analyzer;
-use passwords::scorer;
 use std::env;
-use std::error::Error;
+use std::error;
 use std::path;
 use std::sync::{Arc, Mutex};
-use structopt::StructOpt;
+
+use clap::Parser;
+use gio::ApplicationFlags;
+use gio::prelude::*;
+use gtk::prelude::*;
+use passwords::analyzer;
+use passwords::scorer;
 
 mod db;
 mod gui;
@@ -41,17 +41,17 @@ lazy_static! {
     };
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "senoru", about = "senoru")]
+#[derive(Parser, PartialEq, Debug)]
+#[clap(author, version, about, long_about = None)]
 struct Options {
-    #[structopt(short = "f", long = "database_file", long_help = "database file", parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     database: Option<path::PathBuf>,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn error::Error>> {
     env_logger::init();
 
-    let options = Options::from_args();
+    let options = Options::parse();
     debug!("{:?}", options);
 
     let db_path = match options.database {
@@ -66,28 +66,29 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     env::set_var("SENORU_DB", db_path.as_os_str());
 
-    let application: gtk::Application = gtk::Application::new(Some("com.kiluet.senoru"), Default::default()).expect("initialize failed");
+    let mut application = gtk::Application::builder().application_id("com.kiluet.senoru").build();
 
     application.connect_activate(move |app| {
         start_ui(&app);
     });
-    application.run(&[]);
+    let args: Vec<String> = vec![];
+    application.run_with_args(&args);
 
     Ok(())
 }
 
 fn start_ui(app: &gtk::Application) {
     let builder: gtk::Builder = gtk::Builder::from_string(include_str!("senoru.glade"));
-    let key_dialog: gtk::Dialog = builder.get_object("key_dialog").unwrap();
-    let key_dialog_ok_button: gtk::Button = builder.get_object("key_dialog_ok_button").unwrap();
-    let key_dialog_cancel_button: gtk::Button = builder.get_object("key_dialog_cancel_button").unwrap();
-    let key_dialog_entry: gtk::Entry = builder.get_object("key_dialog_entry").unwrap();
-    let key_dialog_quality_score_label: gtk::Label = builder.get_object("key_dialog_quality_score_label").unwrap();
+    let key_dialog: gtk::Dialog = builder.object("key_dialog").unwrap();
+    let key_dialog_ok_button: gtk::Button = builder.object("key_dialog_ok_button").unwrap();
+    let key_dialog_cancel_button: gtk::Button = builder.object("key_dialog_cancel_button").unwrap();
+    let key_dialog_entry: gtk::Entry = builder.object("key_dialog_entry").unwrap();
+    let key_dialog_quality_score_label: gtk::Label = builder.object("key_dialog_quality_score_label").unwrap();
 
     db::init_db().expect("failed to initialize the db");
 
-    key_dialog_entry.connect_key_release_event(glib::clone!(@weak key_dialog_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
-        let key = entry.get_buffer().get_text();
+    key_dialog_entry.connect_key_release_event(gtk::glib::clone!(@weak key_dialog_quality_score_label => @default-return Inhibit(false), move | entry, _ | {
+        let key = entry.buffer().text();
         let score = scorer::score(&analyzer::analyze(&key));
         key_dialog_quality_score_label.set_label(format!("{}/100", score as i32).as_str());
         Inhibit(false)
@@ -108,7 +109,7 @@ fn start_ui(app: &gtk::Application) {
 
 fn key_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Builder, key_dialog: &gtk::Dialog, key_dialog_entry: &gtk::Entry) {
     let items = item_actions::find_all(Some(1i64)).expect("failed to get items from db");
-    let magic_crypt = new_magic_crypt!(key_dialog_entry.get_buffer().get_text(), 256);
+    let magic_crypt = new_magic_crypt!(key_dialog_entry.buffer().text(), 256);
     // let app_core = AppCore::new(app.clone(), builder.clone(), magic_crypt.clone());
     let mut mc = APP_CORE.magic_crypt.lock().unwrap();
     *mc = Some(magic_crypt.clone());
@@ -121,8 +122,8 @@ fn key_dialog_ok_button_clicked(app: &gtk::Application, builder: &gtk::Builder, 
             }
             Err(e) => {
                 warn!("error message: {}", e.to_string().as_str());
-                let error_dialog: gtk::MessageDialog = builder.get_object("error_dialog").unwrap();
-                error_dialog.set_property_text("Invalid key".into());
+                let error_dialog: gtk::MessageDialog = builder.object("error_dialog").unwrap();
+                error_dialog.set_text("Invalid key".into());
                 error_dialog.run();
                 error_dialog.close();
             }
