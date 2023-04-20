@@ -17,9 +17,7 @@ use std::env;
 use std::error;
 use std::path;
 use std::sync::{Arc, Mutex};
-
 use clap::Parser;
-use gio::ApplicationFlags;
 use gio::prelude::*;
 use gtk::prelude::*;
 use passwords::analyzer;
@@ -66,7 +64,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     };
     env::set_var("SENORU_DB", db_path.as_os_str());
 
-    let mut application = gtk::Application::builder().application_id("com.kiluet.senoru").build();
+    let application = gtk::Application::builder().application_id("com.kiluet.senoru").build();
 
     application.connect_activate(move |app| {
         start_ui(&app);
