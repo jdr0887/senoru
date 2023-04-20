@@ -2,12 +2,10 @@ use std::error::Error;
 use std::fs;
 use std::io;
 use std::io::prelude::*;
-
 use gtk::prelude::*;
 use magic_crypt::MagicCryptTrait;
 use passwords::analyzer;
 use passwords::scorer;
-
 use crate::item_actions;
 use crate::models;
 
@@ -51,23 +49,23 @@ fn connect_items(builder: &gtk::Builder, store: &gtk::ListStore, item_title_tree
 
     item_title_tree_view.set_model(Some(store));
     item_title_tree_view.set_search_entry(Some(&item_title_search_entry));
-    let item_title_tree_view_renderer = gtk::CellRendererTextBuilder::new().editable(true).build();
+    let item_title_tree_view_renderer = gtk::CellRendererText::builder().editable(true).build();
     item_title_tree_view_renderer.connect_edited(glib::clone!(@strong item_title_tree_view, @strong store => move |_renderer, _path, new_title| {
         tree_view_cell_renderer_edited(new_title, &item_title_tree_view, &store);
     }));
-    let column = gtk::TreeViewColumnBuilder::new().title("Title").sort_column_id(0i32).build();
-    column.pack_start(&item_title_tree_view_renderer, true);
-    column.add_attribute(&item_title_tree_view_renderer, "text", 0i32);
+    let column = gtk::TreeViewColumn::builder().title("Title").sort_column_id(0i32).build();
+    TreeViewColumnExt::pack_start(&column, &item_title_tree_view_renderer, true);
+    TreeViewColumnExt::add_attribute(&column, &item_title_tree_view_renderer, "text", 0i32);
     item_title_tree_view.append_column(&column);
 
     // remove popup for item title treeview
-    let remove_menu_item: gtk::MenuItem = gtk::MenuItemBuilder::new().label("Remove").build();
+    let remove_menu_item: gtk::MenuItem = gtk::MenuItem::builder().label("Remove").build();
     remove_menu_item.connect_activate(
         glib::clone!(@strong store, @weak item_title_tree_view, @strong item_content_text_view => move |_menu_item| {
             remove_menu_item_action(&store, &item_title_tree_view, &item_content_text_view);
         }),
     );
-    let popup_menu: gtk::Menu = gtk::MenuBuilder::new().child(&remove_menu_item).build();
+    let popup_menu: gtk::Menu = gtk::Menu::builder().child(&remove_menu_item).build();
     item_title_tree_view.connect_button_press_event(move |_tree_view, event| {
         if event.event_type() == gdk::EventType::ButtonPress && event.button() == 3 {
             debug!("event: {:?}", event);
@@ -189,14 +187,14 @@ fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
 
     tree_view.set_model(Some(&store));
 
-    let password_renderer = gtk::CellRendererTextBuilder::new().editable(true).build();
-    let password_column = gtk::TreeViewColumnBuilder::new().title("Password").sort_column_id(0i32).clickable(true).build();
-    password_column.pack_start(&password_renderer, true);
-    password_column.add_attribute(&password_renderer, "text", 0i32);
+    let password_renderer = gtk::CellRendererText::builder().editable(true).build();
+    let password_column = gtk::TreeViewColumn::builder().title("Password").sort_column_id(0i32).clickable(true).build();
+    TreeViewColumnExt::pack_start(&password_column, &password_renderer, true);
+    TreeViewColumnExt::add_attribute(&password_column, &password_renderer, "text", 0i32);
     tree_view.append_column(&password_column);
 
-    let password_quality_renderer = gtk::CellRendererTextBuilder::new().build();
-    let password_quality_column = gtk::TreeViewColumnBuilder::new()
+    let password_quality_renderer = gtk::CellRendererText::builder().build();
+    let password_quality_column = gtk::TreeViewColumn::builder()
         .title("Quality")
         .sort_column_id(1i32)
         .fixed_width(20)
@@ -204,8 +202,8 @@ fn connect_generate_password_dialog(builder: &gtk::Builder) -> Result<(), Box<dy
         .resizable(false)
         .sizing(gtk::TreeViewColumnSizing::Fixed)
         .build();
-    password_quality_column.pack_start(&password_quality_renderer, true);
-    password_quality_column.add_attribute(&password_quality_renderer, "text", 1i32);
+    TreeViewColumnExt::pack_start(&password_quality_column, &password_quality_renderer, true);
+    TreeViewColumnExt::add_attribute(&password_quality_column, &password_quality_renderer, "text", 1i32);
     tree_view.append_column(&password_quality_column);
 
     let menu_item: gtk::MenuItem = builder.object("generate_password_menu_item").unwrap();
@@ -296,7 +294,7 @@ fn new_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView) {
 }
 
 fn import_menu_item_action(main_window: &gtk::Window, store: &gtk::ListStore, tree_view: &gtk::TreeView) {
-    let file_chooser_dialog = gtk::FileChooserDialogBuilder::new()
+    let file_chooser_dialog = gtk::FileChooserDialog::builder()
         .title("Choose a file to import")
         .show_hidden(true)
         .select_multiple(true)
@@ -355,7 +353,7 @@ fn export_menu_item_action() {
         bw.write_all(contents.as_bytes()).expect("Unable to write data");
     }
 
-    let info_dialog = gtk::MessageDialogBuilder::new()
+    let info_dialog = gtk::MessageDialog::builder()
         .title("Export")
         .buttons(gtk::ButtonsType::Ok)
         .message_type(gtk::MessageType::Info)
@@ -370,20 +368,16 @@ fn remove_menu_item_action(store: &gtk::ListStore, tree_view: &gtk::TreeView, te
     let selection = tree_view.selection();
     let (model, iter) = selection.selected().expect("Couldn't get selected");
     let selected_title = model.value(&iter, 0).get::<String>().expect("failed to get selected title");
-    let item = item_actions::find_by_title(&selected_title).expect("failed to find Item by title");
-    match item {
-        Some(i) => {
-            item_actions::delete(&i.id).expect("failed to delete item");
-            store.remove(&iter);
-            match store.iter_first() {
-                Some(_) => {}
-                None => {
-                    let text_view_buffer = text_view.buffer().expect("Couldn't get buffer");
-                    text_view_buffer.set_text(&"");
-                }
+    if let Some(item) = item_actions::find_by_title(&selected_title).expect("Could not find by title") {
+        item_actions::delete(&item.id).expect("failed to delete item");
+        store.remove(&iter);
+        match store.iter_first() {
+            Some(_) => {}
+            None => {
+                let text_view_buffer = text_view.buffer().expect("Couldn't get buffer");
+                text_view_buffer.set_text(&"");
             }
         }
-        None => {}
     }
 }
 
