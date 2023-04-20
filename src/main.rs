@@ -42,7 +42,7 @@ lazy_static! {
 #[derive(Parser, PartialEq, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Options {
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     database: Option<path::PathBuf>,
 }
 

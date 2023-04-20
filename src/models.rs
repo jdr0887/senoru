@@ -6,9 +6,8 @@ use magic_crypt::MagicCryptTrait;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Insertable, AsChangeset, Associations)]
-#[changeset_options(treat_none_as_null = "true")]
-#[table_name = "items"]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Insertable, AsChangeset)]
+#[diesel(table_name = items, treat_none_as_null = true)]
 pub struct Item {
     pub id: i32,
     pub title: String,
@@ -17,9 +16,8 @@ pub struct Item {
     pub date_last_modified: NaiveDateTime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Queryable, Insertable, AsChangeset, Associations)]
-#[changeset_options(treat_none_as_null = "true")]
-#[table_name = "items"]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Insertable, AsChangeset)]
+#[diesel(table_name = items, treat_none_as_null = true)]
 pub struct NewItem {
     pub title: String,
     pub contents: Option<String>,
